@@ -7,7 +7,7 @@ It has two parts:
 - **The Sheet and its script** (`Code.gs` and `Report.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the page which rooms to show, and emails the report.
 - **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. That address is the one ushers use.
 
-The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to.
+The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to. Instead, each submission must carry the **usher code**, a 6-digit number the script creates for you. Without it, a stranger who found the page couldn't add, change or look up attendance.
 
 ## 1. Create the Sheet
 
@@ -20,7 +20,8 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
 2. Click "Untitled project" at the top and rename it **Usher Attendance**.
 3. You'll see a file called `Code.gs` with a few lines in it. Delete them, then paste in the entire contents of this folder's `Code.gs`.
 4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`.
-5. Click the save icon (💾).
+5. Click the **+** next to "Services", choose **Drive API**, and click **Add**. The report uses it to turn each report into a PDF.
+6. Click the save icon (💾).
 
 ## 3. Run setup once
 
@@ -32,6 +33,7 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
    - **Summary**
    - **Report Emails**
 5. On the **Report Emails** tab, type the staff email addresses in column A, one per row, starting in A2. A Google Group or routing address works too.
+6. Back in Apps Script, click **Execution log** at the top. The last line reads **Usher code: 123456** with your own number. Give that code to the ushers. Running setup again shows the same code.
 
 ## 4. Deploy the script
 
@@ -53,7 +55,7 @@ This only needs to be done once. Deploying a new version of the script later kee
 
 ## 6. Put it on the ushers' phones
 
-Send the ushers the page's address: <https://davidluttrull.github.io/grace-attendance/>. Each usher should save it to their home screen. It shows up as **Attendance** with the Grace cross icon.
+Send the ushers the page's address: <https://davidluttrull.github.io/grace-attendance/> and the usher code. Each usher should save the page to their home screen. It shows up as **Attendance** with the Grace cross icon. The page asks for the code under "Logged By" the first time, and the phone remembers it after that.
 
 - **iPhone:** open the link in Safari, tap the Share button, then tap **Add to Home Screen**.
 - **Android:** open the link in Chrome, tap **⋮**, then tap **Add to Home screen** (or **Install app**).
@@ -65,6 +67,11 @@ Send the ushers the page's address: <https://davidluttrull.github.io/grace-atten
 - Usher Assignments (who stood at each door) is optional and starts collapsed.
 - The phone remembers the usher's name. It also keeps unfinished counts for 12 hours, so a dropped connection or a locked screen won't lose anything. If saving fails, the numbers stay on the screen so the usher can try again.
 - If someone submits a service that's already logged (same date and same service), the page shows who logged it and asks whether to replace it. Nothing gets counted twice.
+- A wrong usher code is rejected and cleared from the phone. After 20 wrong codes within 10 minutes, from any phones, the script stops accepting submissions for 10 minutes, so nobody can guess the code by trying numbers.
+
+## Changing the usher code
+
+Change it if it gets passed around more than you'd like, or when an usher leaves the team. In Apps Script, click the gear icon (**Project Settings**) on the left, scroll to **Script Properties**, click **Edit script properties**, change the value of **USHER_CODE**, and click **Save script properties**. The new code works right away; you don't need to redeploy. Each phone asks for the new code the next time someone submits.
 
 ## Emailed reports
 
@@ -94,7 +101,7 @@ You can sort, filter, chart, or add your own columns to the right. The script fi
 Whenever `Code.gs` or `Report.gs` changes:
 
 1. Paste the new version into Apps Script and save.
-2. Run **setup** once (step 3 above). If the new version needs a new permission, Google asks for it here. The ushers' page can't ask, so skipping this step makes submissions fail until someone runs setup.
+2. Open **Code.gs** and run **setup** once (step 3 above). The dropdown lists only the open file's functions, so setup won't appear while Report.gs is open. If the new version needs a new permission, Google asks for it here. The ushers' page can't ask, so skipping this step makes submissions fail until someone runs setup.
 3. Click **Deploy → Manage deployments**, then click the pencil icon. Under **Version**, choose **New version**, then click **Deploy**.
 
 Don't use **New deployment**, because it creates a new URL and the page would stop reaching the script.

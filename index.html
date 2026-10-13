@@ -361,6 +361,11 @@
         <input id="submittedBy" maxlength="60" autocomplete="name">
       </label>
       <label class="field">
+        <span>Usher code</span>
+        <input id="usherCode" type="password" inputmode="numeric" autocomplete="off" maxlength="20">
+      </label>
+      <p class="hint">Get the code from the church office. This phone remembers it.</p>
+      <label class="field">
         <span>Notes (optional)</span>
         <textarea id="notes" maxlength="500"></textarea>
       </label>
@@ -397,6 +402,7 @@
   const CONFIG_KEY = 'gbc-attendance-config';
   const DRAFT_KEY = 'gbc-attendance-draft';
   const NAME_KEY = 'gbc-attendance-name';
+  const CODE_KEY = 'gbc-attendance-code';
   const DRAFT_MAX_AGE = 12 * 60 * 60 * 1000;
 
   const $ = (sel) => document.querySelector(sel);
@@ -618,6 +624,11 @@
       else $('#serviceCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+    if (!$('#usherCode').value.trim()) {
+      toast('Enter the usher code under "Logged By".');
+      $('#usherCode').focus();
+      return;
+    }
     $('#toast').hidden = true;
     const total = recalc();
     const ok = await dialog({
@@ -649,7 +660,7 @@
     btn.textContent = 'Saving…';
     let res;
     try {
-      res = await api({ form: data, replace: replace });
+      res = await api({ code: $('#usherCode').value.trim(), form: data, replace: replace });
     } catch (err) {
       toast(err.message + ' Your numbers are still here, so try again.');
       return;
@@ -657,6 +668,15 @@
       btn.disabled = false;
       btn.textContent = 'Submit';
     }
+
+    if (res.status === 'badcode') {
+      store((s) => s.removeItem(CODE_KEY));
+      $('#usherCode').value = '';
+      $('#usherCode').focus();
+      toast('That usher code isn’t right. Check with the church office.');
+      return;
+    }
+    store((s) => s.setItem(CODE_KEY, $('#usherCode').value.trim()));
 
     if (res.status === 'duplicate') {
       const replaceIt = await dialog({
@@ -749,6 +769,7 @@
     $('#form').hidden = false;
     $('#bar').hidden = false;
     $('#submittedBy').value = store((s) => s.getItem(NAME_KEY)) || '';
+    $('#usherCode').value = store((s) => s.getItem(CODE_KEY)) || '';
     apply(loadDraft() || { date: today(), service: defaultService() });
   }
 

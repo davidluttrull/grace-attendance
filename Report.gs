@@ -199,31 +199,24 @@ function serviceName_(data) {
 
 // ---- PDF --------------------------------------------------------------------
 
-/** HTML -> temporary Google Doc (Drive converts it) -> PDF. The Doc is trashed afterwards. */
+/**
+ * HTML -> temporary Google Doc (Drive converts it) -> PDF. The Doc is trashed afterwards.
+ * The conversion needs the Drive API advanced service (Services + > Drive API in the editor).
+ */
 function reportPdf_(data) {
-  const boundary = 'gbcreport' + Date.now();
-  const meta = { name: 'Attendance report (temporary)', mimeType: 'application/vnd.google-apps.document' };
-  const head = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
-    JSON.stringify(meta) + '\r\n--' + boundary + '\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n';
-  const tail = '\r\n--' + boundary + '--';
-  const bytes = Utilities.newBlob(head).getBytes()
-    .concat(Utilities.newBlob(reportHtml_(data)).getBytes())
-    .concat(Utilities.newBlob(tail).getBytes());
-
-  const res = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-    method: 'post',
-    contentType: 'multipart/related; boundary=' + boundary,
-    payload: bytes,
-    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-    muteHttpExceptions: true,
-  });
-  if (res.getResponseCode() >= 300) {
-    throw new Error('Google Drive could not build the report (' + res.getResponseCode() + ').');
+  if (typeof Drive === 'undefined') {
+    throw new Error('The Drive API service is off. In Apps Script, click + next to Services, ' +
+      'choose Drive API, click Add, then try again.');
   }
-  const id = JSON.parse(res.getContentText()).id;
-  const file = DriveApp.getFileById(id);
+  const html = Utilities.newBlob(reportHtml_(data), 'text/html', 'report.html');
+  const title = 'Attendance report (temporary)';
+  // Drive API v3 (the editor's default) has create; v2 has insert.
+  const created = Drive.Files.create
+    ? Drive.Files.create({ name: title, mimeType: MimeType.GOOGLE_DOCS }, html)
+    : Drive.Files.insert({ title: title, mimeType: MimeType.GOOGLE_DOCS }, html, { convert: true });
+  const file = DriveApp.getFileById(created.id);
   try {
-    finishDoc_(DocumentApp.openById(id));
+    finishDoc_(DocumentApp.openById(created.id));
     const name = 'Attendance ' + Utilities.formatDate(data.date, data.tz, 'yyyy-MM-dd') + ' ' + serviceName_(data) + '.pdf';
     return file.getAs('application/pdf').setName(name);
   } finally {

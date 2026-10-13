@@ -46,6 +46,7 @@ const DOORS = [
 ];
 
 const MAX_COUNT = 5000;
+const MAX_BAD_CODES = 20; // wrong usher codes allowed per 10 minutes, across all phones
 
 /** GET: the room list the page builds its form from. */
 function doGet() {
@@ -59,6 +60,7 @@ function doGet() {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    if (!codeIsRight_(body.code)) return json_({ status: 'badcode' });
     return json_(submitAttendance(body.form, body.replace));
   } catch (err) {
     return json_({ status: 'error', message: err.message });
@@ -70,11 +72,40 @@ function json_(value) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/** Run this once from the editor to create the tabs and grant permissions. */
+/**
+ * Run this once from the editor to create the tabs and grant permissions.
+ * It also creates the usher code (the first time) and shows it in the
+ * Execution log. To change the code, edit USHER_CODE under Project Settings >
+ * Script Properties.
+ */
 function setup() {
   const sheet = getSheet_();
   ensureEmailsTab_();
   SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
+
+  const props = PropertiesService.getScriptProperties();
+  let code = props.getProperty('USHER_CODE');
+  if (!code) {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+    props.setProperty('USHER_CODE', code);
+  }
+  Logger.log('Usher code: ' + code);
+}
+
+/**
+ * Checks the usher code against the USHER_CODE Script Property, refusing
+ * everything for 10 minutes after too many wrong ones. The code isn't in this
+ * file, so the public copy on GitHub doesn't give it away.
+ */
+function codeIsRight_(code) {
+  const expected = PropertiesService.getScriptProperties().getProperty('USHER_CODE');
+  if (!expected) throw new Error('The usher code hasn\'t been set up yet. Run setup in Apps Script.');
+  const cache = CacheService.getScriptCache();
+  const misses = Number(cache.get('badUsherCode') || 0);
+  if (misses >= MAX_BAD_CODES) throw new Error('Too many wrong codes. Wait 10 minutes and try again.');
+  if (String(code || '').trim() === expected.trim()) return true;
+  cache.put('badUsherCode', String(misses + 1), 600);
+  return false;
 }
 
 /**
