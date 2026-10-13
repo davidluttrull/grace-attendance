@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grace Attendance</title>
+<meta name="theme-color" content="#233617">
+<meta name="apple-mobile-web-app-title" content="Attendance">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #7BAE58;
+    --brand-deep: #233617;
+    --brand-mid: #4E7A35;
+    --bg: #F3F8EF;
+    --card: #FFFFFF;
+    --ink: #1E2A16;
+    --muted: #5B6A50;
+    --line: #DCE7D3;
+    --step-bg: #EFF6EA;
+    --step-line: #C6DBB6;
+    --step-ink: #233617;
+    --btn-bg: #233617;
+    --btn-ink: #FFFFFF;
+    --chip-on-bg: #233617;
+    --chip-on-ink: #FFFFFF;
+    --filled: #F6FAF2;
+    --danger: #B3261E;
+    --shadow: 0 1px 2px rgba(35, 54, 23, .06), 0 2px 8px rgba(35, 54, 23, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10160C;
+      --card: #1A2414;
+      --ink: #E8F0E1;
+      --muted: #A3B396;
+      --line: #2D3B24;
+      --step-bg: #243319;
+      --step-line: #3A4D2E;
+      --step-ink: #E8F0E1;
+      --btn-bg: #7BAE58;
+      --btn-ink: #10160C;
+      --chip-on-bg: #7BAE58;
+      --chip-on-ink: #10160C;
+      --filled: #1F2C18;
+      --danger: #F2B8B5;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.4 'Poppins', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .top {
+    background: var(--brand-deep);
+    color: #fff;
+    padding: 18px 16px 20px;
+    text-align: center;
+  }
+  .top img { height: 52px; display: block; margin: 0 auto 6px; }
+  .top p { margin: 0; font-size: 14px; color: #CFE3C0; letter-spacing: .02em; }
+
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 12px 12px 120px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--brand-mid);
+  }
+  @media (prefers-color-scheme: dark) { h2 { color: var(--brand); } }
+  .sub {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .hint { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+
+  .field { display: block; margin-top: 10px; }
+  .field > span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 16px;
+  }
+  .field textarea { min-height: 72px; resize: vertical; }
+  input:focus, textarea:focus, button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+  input[type="date"] { -webkit-appearance: none; appearance: none; }
+
+  .chips {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .chip {
+    min-height: 48px;
+    border: 1px solid var(--step-line);
+    background: var(--step-bg);
+    color: var(--step-ink);
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .chip[aria-checked="true"] {
+    background: var(--chip-on-bg);
+    border-color: var(--chip-on-bg);
+    color: var(--chip-on-ink);
+    font-weight: 600;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+  .card-head + .row { border-top: 0; }
+  .row label { flex: 1; min-width: 0; }
+  .stepper { display: flex; align-items: center; gap: 6px; flex: none; }
+  .stepper button {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid var(--step-line);
+    background: var(--step-bg);
+    color: var(--step-ink);
+    font-size: 26px;
+    line-height: 1;
+    padding: 0 0 2px;
+    touch-action: manipulation;
+  }
+  .stepper button:active { transform: scale(.94); }
+  .stepper input {
+    width: 62px;
+    height: 46px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    font-variant-numeric: tabular-nums;
+  }
+  .stepper input:not(:placeholder-shown) { background: var(--filled); border-color: var(--step-line); }
+
+  details.card > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    min-height: 28px;
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after {
+    content: '';
+    width: 9px; height: 9px;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(45deg);
+    margin: -4px 4px 0 0;
+    transition: transform .15s;
+  }
+  details[open].card > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+  .door-group { margin-top: 12px; }
+  .door-group h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .door-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .door-pair .field { margin-top: 0; }
+
+  .link {
+    display: block;
+    margin: 4px auto 0;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    text-decoration: underline;
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--brand-deep);
+    color: #fff;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .15);
+  }
+  .bar-inner {
+    max-width: 560px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .total { flex: 1; line-height: 1.1; }
+  .total span { display: block; font-size: 13px; color: #CFE3C0; text-transform: uppercase; letter-spacing: .06em; }
+  .total strong { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .primary {
+    min-height: 52px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--brand);
+    color: #10160C;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .primary:disabled { opacity: .6; }
+  .bar .primary:focus-visible { outline-color: #fff; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 22, 12, .55);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+  }
+  .sheet {
+    width: 100%;
+    max-width: 440px;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 22px 20px 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  @media (min-width: 600px) { .overlay { align-items: center; } }
+  .sheet h3 { margin: 0 0 6px; font-size: 19px; }
+  .sheet p { margin: 0 0 18px; color: var(--muted); }
+  .sheet .big { display: block; font-size: 40px; font-weight: 700; color: var(--ink); line-height: 1.1; margin-bottom: 2px; }
+  .sheet-buttons { display: flex; gap: 10px; }
+  .sheet-buttons button { flex: 1; min-height: 50px; border-radius: 12px; font-weight: 600; }
+  .secondary { background: var(--step-bg); border: 1px solid var(--step-line); color: var(--step-ink); }
+  .sheet .primary { background: var(--btn-bg); color: var(--btn-ink); padding: 0 12px; }
+
+  .done { text-align: center; }
+  .check {
+    width: 64px; height: 64px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: var(--brand);
+    display: grid;
+    place-items: center;
+  }
+  .check::after {
+    content: '';
+    width: 14px; height: 26px;
+    border-right: 4px solid #fff;
+    border-bottom: 4px solid #fff;
+    transform: rotate(45deg) translate(-2px, -3px);
+  }
+
+  .loading { text-align: center; padding: 48px 16px; color: var(--muted); }
+  .loading button { min-height: 46px; padding: 0 22px; border-radius: 12px; font-weight: 600; }
+
+  .toast {
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    max-width: 536px;
+    margin: 0 auto;
+    background: var(--danger);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    z-index: 5;
+  }
+  @media (prefers-color-scheme: dark) { .toast { color: #10160C; } }
+</style>
+</head>
+<body>
+  <header class="top">
+    <img src="logo.png" alt="Grace Baptist Church">
+    <p>Usher Attendance</p>
+  </header>
+
+  <div class="loading" id="loading">
+    <p id="loadingText">Loading&hellip;</p>
+    <button type="button" class="secondary" id="retry" hidden>Try again</button>
+  </div>
+
+  <main id="form" hidden>
+    <section class="card" id="serviceCard">
+      <h2>Service</h2>
+      <label class="field">
+        <span>Date</span>
+        <input type="date" id="date" required>
+      </label>
+      <div class="chips" id="services" role="radiogroup" aria-label="Service"></div>
+      <label class="field" id="otherWrap" hidden>
+        <span>Service name</span>
+        <input id="otherName" maxlength="60" placeholder="e.g. Revival, Christmas Eve">
+      </label>
+    </section>
+
+    <div id="sections"></div>
+
+    <section class="card">
+      <div class="card-head"><h2>Bulletins</h2></div>
+      <div id="bulletinRow"></div>
+      <p class="hint">Not counted in the total.</p>
+    </section>
+
+    <details class="card" id="doorsCard">
+      <summary><h2>Usher Assignments</h2></summary>
+      <div id="doors"></div>
+    </details>
+
+    <section class="card">
+      <h2>Logged By</h2>
+      <label class="field">
+        <span>Your name</span>
+        <input id="submittedBy" maxlength="60" autocomplete="name">
+      </label>
+      <label class="field">
+        <span>Notes (optional)</span>
+        <textarea id="notes" maxlength="500"></textarea>
+      </label>
+    </section>
+
+    <button type="button" class="link" id="clear">Clear form</button>
+  </main>
+
+  <div class="bar" id="bar" hidden>
+    <div class="bar-inner">
+      <div class="total"><span>Total attendance</span><strong id="total">0</strong></div>
+      <button type="button" class="primary" id="submit">Submit</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+
+  <div class="overlay" id="dialog" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <div class="check" id="dialogCheck" hidden></div>
+      <h3 id="dialogTitle"></h3>
+      <p id="dialogBody"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="secondary" id="dialogCancel">Cancel</button>
+        <button type="button" class="primary" id="dialogOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // The Apps Script web app URL (Deploy > Manage deployments). It stays the
+  // same when a new version is deployed.
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwXYSx0-AIJMaoGwY2KE2wFNAtdLvPahfujlZyv9ftizq7VlhoeuCwRuPXekbtbZfiNjw/exec';
+  const CONFIG_KEY = 'gbc-attendance-config';
+  const DRAFT_KEY = 'gbc-attendance-draft';
+  const NAME_KEY = 'gbc-attendance-name';
+  const DRAFT_MAX_AGE = 12 * 60 * 60 * 1000;
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  let service = '';
+  let uid = 0;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function store(fn) {
+    try { return fn(window.localStorage); } catch (e) { return null; }
+  }
+
+  // ---- Build the form -----------------------------------------------------
+
+  function stepRow(label, attrs) {
+    const id = 'n' + (++uid);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<label for="' + id + '">' + esc(label) + '</label>' +
+      '<div class="stepper">' +
+        '<button type="button" data-step="-1" aria-label="Subtract one from ' + esc(label) + '">&minus;</button>' +
+        '<input id="' + id + '" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="0" autocomplete="off">' +
+        '<button type="button" data-step="1" aria-label="Add one to ' + esc(label) + '">+</button>' +
+      '</div>';
+    Object.assign(row.querySelector('input').dataset, attrs);
+    return row;
+  }
+
+  let CONFIG;
+
+  function build() {
+    ['#services', '#sections', '#bulletinRow', '#doors'].forEach((sel) => { $(sel).innerHTML = ''; });
+    const chips = $('#services');
+    CONFIG.services.forEach((name) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', 'false');
+      b.dataset.service = name;
+      b.textContent = name;
+      chips.appendChild(b);
+    });
+
+    const sections = $('#sections');
+    CONFIG.sections.forEach((section, si) => {
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = '<div class="card-head"><h2>' + esc(section.title) + '</h2>' +
+        '<span class="sub" data-sub="' + si + '">0</span></div>';
+      section.areas.forEach((area) => card.appendChild(stepRow(area, { area: area, section: si })));
+      sections.appendChild(card);
+    });
+
+    $('#bulletinRow').appendChild(stepRow('Bulletins Left', { bulletins: '1' }));
+    $('#bulletinRow .row').style.borderTop = '0';
+
+    const doors = $('#doors');
+    CONFIG.doors.forEach((g) => {
+      const div = document.createElement('div');
+      div.className = 'door-group';
+      div.innerHTML = '<h3>' + esc(g.group) + '</h3><div class="door-pair">' +
+        g.doors.map((n) => '<label class="field"><span>Door ' + n + '</span>' +
+          '<input data-door="' + n + '" maxlength="40" autocomplete="off"></label>').join('') +
+        '</div>';
+      doors.appendChild(div);
+    });
+  }
+
+  // ---- Form state ---------------------------------------------------------
+
+  function today() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function defaultService() {
+    const d = new Date();
+    if (d.getDay() === 0) return d.getHours() < 15 ? 'Sunday AM' : 'Sunday PM';
+    if (d.getDay() === 3) return 'Wednesday';
+    return '';
+  }
+
+  function setService(name) {
+    service = name;
+    $$('.chip').forEach((c) => c.setAttribute('aria-checked', String(c.dataset.service === name)));
+    $('#otherWrap').hidden = name !== 'Other';
+  }
+
+  function num(input) {
+    return input.value === '' ? 0 : Number(input.value);
+  }
+
+  function recalc() {
+    let total = 0;
+    CONFIG.sections.forEach((_, si) => {
+      const sub = $$('input[data-section="' + si + '"]').reduce((s, i) => s + num(i), 0);
+      $('[data-sub="' + si + '"]').textContent = sub;
+      total += sub;
+    });
+    $('#total').textContent = total;
+    return total;
+  }
+
+  function collect() {
+    const counts = {};
+    $$('input[data-area]').forEach((i) => { counts[i.dataset.area] = i.value; });
+    const doors = {};
+    $$('input[data-door]').forEach((i) => { doors[i.dataset.door] = i.value.trim(); });
+    return {
+      date: $('#date').value,
+      service: service,
+      otherName: $('#otherName').value.trim(),
+      counts: counts,
+      bulletins: $('input[data-bulletins]').value,
+      doors: doors,
+      submittedBy: $('#submittedBy').value.trim(),
+      notes: $('#notes').value.trim(),
+    };
+  }
+
+  function apply(data) {
+    $('#date').value = data.date || today();
+    setService(data.service || '');
+    $('#otherName').value = data.otherName || '';
+    $$('input[data-area]').forEach((i) => { i.value = (data.counts || {})[i.dataset.area] || ''; });
+    $('input[data-bulletins]').value = data.bulletins || '';
+    $$('input[data-door]').forEach((i) => { i.value = (data.doors || {})[i.dataset.door] || ''; });
+    $('#notes').value = data.notes || '';
+    if (Object.values(data.doors || {}).some(Boolean)) $('#doorsCard').open = true;
+    recalc();
+  }
+
+  function saveDraft() {
+    const data = collect();
+    data.savedAt = Date.now();
+    store((s) => s.setItem(DRAFT_KEY, JSON.stringify(data)));
+    store((s) => s.setItem(NAME_KEY, data.submittedBy));
+  }
+
+  function loadDraft() {
+    const raw = store((s) => s.getItem(DRAFT_KEY));
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw);
+      return Date.now() - data.savedAt < DRAFT_MAX_AGE ? data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function resetForm() {
+    store((s) => s.removeItem(DRAFT_KEY));
+    apply({ date: today(), service: defaultService() });
+    window.scrollTo(0, 0);
+  }
+
+  // ---- Dialogs and messages -----------------------------------------------
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+  }
+
+  function dialog(opts) {
+    return new Promise((resolve) => {
+      $('#dialogTitle').textContent = opts.title;
+      $('#dialogBody').innerHTML = opts.body;
+      $('#dialogOk').textContent = opts.ok || 'OK';
+      $('#dialogCancel').hidden = !opts.cancel;
+      $('#dialogCancel').textContent = opts.cancel || '';
+      $('#dialogCheck').hidden = !opts.check;
+      $('.sheet').classList.toggle('done', !!opts.check);
+      $('#dialog').hidden = false;
+      $('#dialogOk').focus();
+      const finish = (ok) => {
+        $('#dialog').hidden = true;
+        $('#dialogOk').onclick = $('#dialogCancel').onclick = null;
+        resolve(ok);
+      };
+      $('#dialogOk').onclick = () => finish(true);
+      $('#dialogCancel').onclick = () => finish(false);
+    });
+  }
+
+  function serviceLabel(data) {
+    return data.service === 'Other' ? data.otherName : data.service;
+  }
+
+  function dateLabel(value) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  // ---- Submit -------------------------------------------------------------
+
+  function validate(data) {
+    if (!data.date) return 'Pick the date.';
+    if (!data.service) return 'Pick which service this is.';
+    if (data.service === 'Other' && !data.otherName) return 'Type a name for the service.';
+    if (!data.submittedBy) return 'Add your name under "Logged By".';
+    return '';
+  }
+
+  async function submit() {
+    const data = collect();
+    const problem = validate(data);
+    if (problem) {
+      toast(problem);
+      if (!data.submittedBy && data.date && data.service) $('#submittedBy').focus();
+      else $('#serviceCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    $('#toast').hidden = true;
+    const total = recalc();
+    const ok = await dialog({
+      title: 'Submit attendance?',
+      body: '<span class="big">' + total + '</span>' + esc(serviceLabel(data)) + ' &middot; ' + esc(dateLabel(data.date)),
+      ok: 'Submit',
+      cancel: 'Go back',
+    });
+    if (ok) send(data, false);
+  }
+
+  // GET reads the room list; POST saves. The POST body is plain text and no
+  // cookies are sent, so there's no CORS preflight and no Google login involved.
+  async function api(body) {
+    let res;
+    try {
+      const r = await fetch(API_URL, body ? { method: 'POST', body: JSON.stringify(body) } : {});
+      res = await r.json();
+    } catch (e) {
+      throw new Error('Couldn’t reach the attendance sheet. Check your connection.');
+    }
+    if (res.status === 'error') throw new Error(res.message);
+    return res;
+  }
+
+  async function send(data, replace) {
+    const btn = $('#submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    let res;
+    try {
+      res = await api({ form: data, replace: replace });
+    } catch (err) {
+      toast(err.message + ' Your numbers are still here, so try again.');
+      return;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Submit';
+    }
+
+    if (res.status === 'duplicate') {
+      const replaceIt = await dialog({
+        title: 'Already logged',
+        body: esc(serviceLabel(data)) + ' on ' + esc(dateLabel(data.date)) + ' was logged' +
+          (res.by ? ' by ' + esc(res.by) : '') + (res.at ? ' at ' + esc(res.at) : '') +
+          ' with a total of ' + esc(res.total) + '. Replace it with these numbers?',
+        ok: 'Replace',
+        cancel: 'Cancel',
+      });
+      if (replaceIt) send(data, true);
+      return;
+    }
+    await dialog({
+      check: true,
+      title: res.replaced ? 'Attendance updated' : 'Attendance logged',
+      body: '<span class="big">' + res.total + '</span>' + esc(serviceLabel(data)) + ' &middot; ' + esc(dateLabel(data.date)),
+      ok: 'Log another service',
+    });
+    resetForm();
+  }
+
+  // ---- Events -------------------------------------------------------------
+
+  document.addEventListener('click', (e) => {
+    const step = e.target.closest('[data-step]');
+    if (step) {
+      const input = step.parentNode.querySelector('input');
+      input.value = Math.max(0, Math.min(9999, num(input) + Number(step.dataset.step))) || '';
+      recalc();
+      saveDraft();
+      return;
+    }
+    const chip = e.target.closest('.chip');
+    if (chip) {
+      setService(chip.dataset.service);
+      if (service === 'Other') $('#otherName').focus();
+      saveDraft();
+    }
+  });
+
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.matches('.stepper input')) {
+      const clean = t.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 4);
+      if (clean !== t.value) t.value = clean;
+      recalc();
+    }
+    saveDraft();
+  });
+
+  document.addEventListener('focusin', (e) => {
+    if (e.target.matches('.stepper input')) setTimeout(() => e.target.select(), 0);
+  });
+
+  $('#submit').addEventListener('click', submit);
+  $('#clear').addEventListener('click', async () => {
+    const ok = await dialog({ title: 'Clear the form?', body: 'This erases every number on this page.', ok: 'Clear', cancel: 'Cancel' });
+    if (ok) resetForm();
+  });
+
+  // Build from the room list saved on this phone when there is one, so the
+  // form appears at once, then rebuild if the script's list has changed.
+  async function start() {
+    const cached = store((s) => JSON.parse(s.getItem(CONFIG_KEY)));
+    const fresh = api().then((c) => {
+      store((s) => s.setItem(CONFIG_KEY, JSON.stringify(c)));
+      return c;
+    });
+    try {
+      CONFIG = cached || await fresh;
+    } catch (err) {
+      $('#loadingText').textContent = err.message;
+      $('#retry').hidden = false;
+      return;
+    }
+    if (cached) {
+      fresh.then((c) => {
+        if (JSON.stringify(c) === JSON.stringify(CONFIG)) return;
+        const data = collect();
+        const doorsOpen = $('#doorsCard').open;
+        CONFIG = c;
+        build();
+        apply(data);
+        if (doorsOpen) $('#doorsCard').open = true;
+      }).catch(() => {});
+    }
+    build();
+    $('#loading').hidden = true;
+    $('#form').hidden = false;
+    $('#bar').hidden = false;
+    $('#submittedBy').value = store((s) => s.getItem(NAME_KEY)) || '';
+    apply(loadDraft() || { date: today(), service: defaultService() });
+  }
+
+  $('#retry').addEventListener('click', () => {
+    $('#retry').hidden = true;
+    $('#loadingText').textContent = 'Loading…';
+    start();
+  });
+
+  start();
+</script>
+</body>
+</html>

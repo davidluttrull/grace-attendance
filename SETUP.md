@@ -1,0 +1,84 @@
+# Usher Attendance: Setup
+
+This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet.
+
+It has two parts:
+
+- **The Sheet and its script** (`Code.gs`). The script lives inside the Google Sheet. It saves each submission as a row and tells the page which rooms to show.
+- **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. That address is the one ushers use.
+
+The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to.
+
+## 1. Create the Sheet
+
+1. Sign in to the Google account that should own the attendance records. The church office account is a better choice than a personal one, because the page keeps working when people leave.
+2. Create a new blank Google Sheet and name it something like **Church Attendance**.
+
+## 2. Add the script
+
+1. In the Sheet, open **Extensions → Apps Script**.
+2. Click "Untitled project" at the top and rename it **Usher Attendance**.
+3. You'll see a file called `Code.gs` with a few lines in it. Delete them, then paste in the entire contents of this folder's `Code.gs`.
+4. Click the save icon (💾).
+
+## 3. Run setup once
+
+1. Click **Code.gs** in the Files list. The Run button and the function dropdown appear only while a `.gs` file is open. In the dropdown next to **Debug** (it probably shows `doGet`), pick **setup**, then click **Run**.
+2. Google will ask for permission. Click **Review permissions** and choose your account.
+3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**.
+4. Switch back to the Sheet. You should see two tabs:
+   - **Attendance**, with a dark green header row
+   - **Summary**
+
+## 4. Deploy the script
+
+1. In Apps Script, click **Deploy → New deployment**.
+2. Click the gear icon next to "Select type" and choose **Web app**.
+3. Fill in:
+   - **Description:** `v1`
+   - **Execute as:** **Me**
+   - **Who has access:** **Anyone**. The page needs this setting to reach the script without a sign-in.
+4. Click **Deploy** and copy the **Web app URL**. It ends in `/exec`.
+
+To check the deployment, open that URL in a browser. You should see a short block of text that starts with `{"sections":`. That's the room list, and it means the script is working.
+
+## 5. Connect the page to the script
+
+The page has to know the script's address. Near the bottom of `index.html`, find the line that starts with `const API_URL =`, and put the `/exec` URL from step 4 between the quotes.
+
+This only needs to be done once. Deploying a new version of the script later keeps the same URL (see "Changing rooms or areas" below).
+
+## 6. Put it on the ushers' phones
+
+Send the ushers the page's address: <https://davidluttrull.github.io/grace-attendance/>. Each usher should save it to their home screen. It shows up as **Attendance** with the Grace cross icon.
+
+- **iPhone:** open the link in Safari, tap the Share button, then tap **Add to Home Screen**.
+- **Android:** open the link in Chrome, tap **⋮**, then tap **Add to Home screen** (or **Install app**).
+
+## How it works
+
+- The page fills in today's date and picks the service from the day and time: Sunday before 3 PM is AM, Sunday after 3 PM is PM, and Wednesday is Wednesday. On other days, the usher picks one.
+- Ushers can tap **+ / −** or tap a box and type a number. Subtotals and the total update as they go. Bulletins Left is not counted in the total.
+- Usher Assignments (who stood at each door) is optional and starts collapsed.
+- The phone remembers the usher's name. It also keeps unfinished counts for 12 hours, so a dropped connection or a locked screen won't lose anything. If saving fails, the numbers stay on the screen so the usher can try again.
+- If someone submits a service that's already logged (same date and same service), the page shows who logged it and asks whether to replace it. Nothing gets counted twice.
+
+## The Sheet
+
+- **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, and notes.
+- **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
+
+You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** tab name and the existing header names unchanged.
+
+## Changing rooms or areas
+
+Room names live near the top of `Code.gs`, in `SECTIONS`. To add, rename, or remove one:
+
+1. Edit the list in Apps Script and save.
+2. Click **Deploy → Manage deployments**, then click the pencil icon. Under **Version**, choose **New version**, then click **Deploy**.
+
+Don't use **New deployment** for this, because it creates a new URL and the page would stop reaching the script.
+
+The page itself doesn't need to change, because it reads the room list from the script. A phone that has the page open shows the new list a moment after the page loads. If someone submits from a page that still shows a removed room, the script refuses the numbers and asks them to reopen the page, so nothing is lost without a warning.
+
+A new area gets its own column at the right end of the Attendance tab. Removing an area from the page leaves its old column in the Sheet, so past numbers aren't lost.
