@@ -6,6 +6,9 @@
  * numbers to doPost, which logs them as one row in this spreadsheet.
  * See SETUP.md for how to deploy it.
  *
+ * Report.gs emails a PDF report of each submission to the addresses on the
+ * Report Emails tab.
+ *
  * To add, rename or reorder an area, edit SECTIONS below and deploy a new
  * version. New areas get a new column at the right end of the sheet; old
  * columns are never deleted, so past data stays put.
@@ -70,6 +73,7 @@ function json_(value) {
 /** Run this once from the editor to create the tabs and grant permissions. */
 function setup() {
   const sheet = getSheet_();
+  ensureEmailsTab_();
   SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
 }
 
@@ -120,6 +124,7 @@ function submitAttendance(form, replace) {
   record['Submitted By'] = clean_(form.submittedBy, 60);
   record['Submitted At'] = new Date();
   record['Notes'] = clean_(form.notes, 500);
+  record[REPORT_STATUS] = replace ? 'Pending (updated)' : 'Pending';
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -151,6 +156,12 @@ function submitAttendance(form, replace) {
     } else {
       sheet.appendRow(row);
     }
+    try {
+      queueReport_();
+    } catch (err) {
+      // The numbers are saved; the report can be sent later from the Attendance menu.
+      console.error('Could not schedule the report: ' + err.message);
+    }
     return { status: 'saved', replaced: !!existing, total: total };
   } finally {
     lock.releaseLock();
@@ -169,7 +180,7 @@ function headers_() {
   });
   h.push('Bulletins Left');
   allDoors_().forEach(function (n) { h.push(doorHeader_(n)); });
-  h.push('Submitted By', 'Submitted At', 'Notes');
+  h.push('Submitted By', 'Submitted At', 'Notes', REPORT_STATUS);
   return h;
 }
 
