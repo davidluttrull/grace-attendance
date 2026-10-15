@@ -5,7 +5,7 @@ This replaces the paper Church Attendance sheet with a web page ushers open on t
 It has two parts:
 
 - **The Sheet and its script** (`Code.gs` and `Report.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the page which rooms to show, and emails the report.
-- **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. That address is the one ushers use.
+- **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. The church site forwards <https://gracetoanderson.com/ushercount> there, and that's the address ushers use.
 
 The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to. Instead, each submission must carry the **usher code**, a 6-digit number the script creates for you. Without it, a stranger who found the page couldn't add, change or look up attendance.
 
@@ -55,7 +55,7 @@ This only needs to be done once. Deploying a new version of the script later kee
 
 ## 6. Put it on the ushers' phones
 
-Send the ushers the page's address: <https://davidluttrull.github.io/grace-attendance/> and the usher code. Each usher should save the page to their home screen. It shows up as **Attendance** with the Grace cross icon. The page asks for the code under "Logged By" the first time, and the phone remembers it after that.
+Send the ushers the page's address, <https://gracetoanderson.com/ushercount>, and the usher code. Each usher should save the page to their home screen. It shows up as **Attendance** with the Grace cross icon. The page asks for the code under "Logged By" the first time, and the phone remembers it after that.
 
 - **iPhone:** open the link in Safari, tap the Share button, then tap **Add to Home Screen**.
 - **Android:** open the link in Chrome, tap **⋮**, then tap **Add to Home screen** (or **Install app**).
