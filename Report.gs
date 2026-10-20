@@ -6,7 +6,9 @@
  * usher's phone doesn't wait on the email. sendPendingReports builds the
  * report and emails it to the addresses on the Report Emails tab. The report
  * is the body of the email, as HTML styled like the web page, with a plain-
- * text version for email apps that don't show HTML.
+ * text version for email apps that don't show HTML. Recent services and the
+ * comparison with last year also read the History tabs (History.gs), so they
+ * reach back before the ushers' page.
  */
 
 const EMAILS_NAME = 'Report Emails';
@@ -39,6 +41,8 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Attendance')
     .addItem('Email report for selected row', 'emailSelectedReport')
     .addItem('Send me a test report for selected row', 'emailSelectedReportToMe')
+    .addSeparator()
+    .addItem('Import history from the old attendance sheet', 'importHistory')
     .addToUi();
 }
 
@@ -195,9 +199,49 @@ function reportData_(sheet, cols, row, tz) {
       data.sameDay.push({ name: get(r, 'Service') === 'Other' ? get(r, 'Other Service') : get(r, 'Service'), total: entry.total });
     }
   });
+  // Counts from before the ushers' page, from the History tabs (History.gs).
+  // The Attendance tab wins when both have the same service on the same day.
+  if (data.service !== 'Other' && data.date instanceof Date) {
+    const year = data.date.getFullYear();
+    const logged = {};
+    data.history.forEach(function (e) { logged[day(e.date)] = true; });
+    historyCounts_(data.service, [year - 2, year - 1, year]).forEach(function (e) {
+      if (!logged[day(e.date)] && day(e.date) <= thisDay) data.history.push({ date: e.date, total: e.total, current: false, past: true });
+    });
+  }
   data.history.sort(function (a, b) { return a.date - b.date; });
+  data.compare = compareYears_(data.history, data.date, data.total);
   data.history = data.history.slice(-HISTORY_COUNT);
   return data;
+}
+
+/**
+ * This service against last year: the same week a year ago (the service
+ * closest to 52 weeks back, within 3 days), and this year's average so far
+ * beside last year's over the same weeks. Calendar years.
+ */
+function compareYears_(series, date, total) {
+  if (!(date instanceof Date)) return null;
+  const DAY = 86400000;
+  const target = date.getTime() - 364 * DAY;
+  let lastYear = null;
+  series.forEach(function (e) {
+    const gap = Math.abs(e.date.getTime() - target);
+    if (!e.current && gap <= 3 * DAY && (!lastYear || gap < Math.abs(lastYear.date.getTime() - target))) lastYear = e;
+  });
+  const y = date.getFullYear();
+  const sameDayLastYear = new Date(y - 1, date.getMonth(), date.getDate(), 23);
+  const avg = function (list) {
+    return list.length ? Math.round(list.reduce(function (t, e) { return t + e.total; }, 0) / list.length) : null;
+  };
+  const thisYear = series.filter(function (e) { return e.date.getFullYear() === y && e.date <= date; });
+  const before = series.filter(function (e) { return e.date.getFullYear() === y - 1 && e.date <= sameDayLastYear; });
+  return {
+    year: y,
+    lastYear: lastYear ? { date: lastYear.date, total: lastYear.total, change: total - lastYear.total } : null,
+    average: avg(thisYear), count: thisYear.length,
+    lastAverage: avg(before), lastCount: before.length,
+  };
 }
 
 function serviceName_(data) {
@@ -339,6 +383,12 @@ function reportHtml_(d, updated) {
   const changeNote = prev
     ? (change === 0 ? 'Same as' : (change > 0 ? 'Up ' + change + ' from' : 'Down ' + (-change) + ' from')) + ' ' + fmtDate_(prev.date, d.tz, 'M/d')
     : 'All areas';
+  // Up green, down amber, as in the offering report.
+  const signedHtml = function (n) {
+    return '<span style="color:' + (n < 0 ? '#8A5200' : '#3D7A28') + ';font-weight:600">' + (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n) + '</span>';
+  };
+  const cmp = d.compare || {};
+  const ly = cmp.lastYear;
   const out = [];
   const preview = d.total + ' at ' + svc + ' · ' + d.sections.map(function (s) { return s.title + ' ' + s.subtotal; }).join(' · ');
 
@@ -361,7 +411,8 @@ function reportHtml_(d, updated) {
     '</td></tr>');
 
   // Quick boxes: the total, then one per section, two across
-  const boxes = [eBox_('Total attendance', String(d.total), esc_(changeNote), true)].concat(d.sections.map(function (s) {
+  const boxes = [eBox_('Total attendance', String(d.total), esc_(changeNote) +
+    (ly ? '<br>' + (ly.change > 0 ? '+' : ly.change < 0 ? '−' : '±') + Math.abs(ly.change) + ' vs. last year (' + ly.total + ')' : ''), true)].concat(d.sections.map(function (s) {
     return eBox_(s.title, String(s.subtotal), pct_(s.subtotal, d.total) ? pct_(s.subtotal, d.total) + ' of total' : '&nbsp;');
   }));
   let quick = '';
@@ -441,12 +492,25 @@ function reportHtml_(d, updated) {
     const max = Math.max.apply(null, d.history.map(function (e) { return e.total; }).concat([1]));
     recent.push(eTable_(d.history.slice().reverse().map(function (e) {
       const b = e.current ? 'font-weight:700;' : '';
-      return '<tr><td style="' + FONT + 'width:52px;padding:5px 8px 5px 0;font-size:13px;color:' + T.ink + ';' + b + '">' + fmtDate_(e.date, d.tz, 'MMM d') + '</td>' +
+      return '<tr><td style="' + FONT + 'width:52px;padding:5px 8px 5px 0;font-size:13px;white-space:nowrap;color:' + T.ink + ';' + b + '">' +
+        fmtDate_(e.date, d.tz, e.date.getFullYear() === d.date.getFullYear() ? 'MMM d' : 'MMM d, yyyy') + '</td>' +
         '<td style="padding:5px 0">' + eBar_(e.total, max, e.current ? T.deep : '#A8C496') + '</td>' +
         '<td style="' + FONT + 'width:44px;padding:5px 0 5px 8px;font-size:13px;text-align:right;color:' + T.ink + ';' + b + '">' + e.total + '</td></tr>';
     }).join('')));
   } else {
     recent.push(eCaption_('This is the first ' + svc + ' service recorded. Comparisons will appear here as more are logged.'));
+  }
+  // Compared with last year
+  if (ly || cmp.average !== null && cmp.lastAverage !== null) {
+    const rowsCmp = [];
+    if (ly) rowsCmp.push(['Same week last year', ly.total + ' <span style="font-size:11px;color:' + T.muted + '">' + fmtDate_(ly.date, d.tz, 'MMM d, yyyy') + '</span>', signedHtml(ly.change)]);
+    if (cmp.average !== null) rowsCmp.push([cmp.year + ' average so far', cmp.average + ' <span style="font-size:11px;color:' + T.muted + '">' + cmp.count + (cmp.count === 1 ? ' service' : ' services') + '</span>', '']);
+    if (cmp.lastAverage !== null) rowsCmp.push([(cmp.year - 1) + ' average, same weeks', String(cmp.lastAverage),
+      cmp.average !== null ? signedHtml(cmp.average - cmp.lastAverage) : '']);
+    recent.push(eSubhead_('Compared with last year', 14));
+    recent.push(eTable_(rowsCmp.map(function (r) {
+      return '<tr>' + cell(r[0]) + cell(r[1], 'text-align:right;white-space:nowrap') + cell(r[2], 'text-align:right;width:44px') + '</tr>';
+    }).join('')));
   }
   if (d.sameDay.length) {
     recent.push(eSubhead_('Same day', 14));
@@ -486,6 +550,10 @@ function emailText_(d, updated) {
     lines.push(s.title + ': ' + s.subtotal);
     s.areas.forEach(function (a) { lines.push('  ' + a.name + ': ' + (a.n === null ? '—' : a.n)); });
   });
+  const c = d.compare;
+  if (c && c.lastYear) lines.push('', 'Same week last year: ' + c.lastYear.total + ' (' + fmtDate_(c.lastYear.date, d.tz, 'MMM d, yyyy') + '), ' +
+    (c.lastYear.change >= 0 ? '+' : '') + c.lastYear.change);
+  if (c && c.average !== null) lines.push(c.year + ' average so far: ' + c.average + (c.lastAverage !== null ? '; ' + (c.year - 1) + ' same weeks: ' + c.lastAverage : ''));
   if (d.bulletins !== null) lines.push('', 'Bulletins left over: ' + d.bulletins);
   if (d.submittedBy) lines.push('Counted by ' + d.submittedBy);
   if (d.notes) lines.push('', 'Notes: ' + d.notes);

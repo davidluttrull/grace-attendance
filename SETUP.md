@@ -4,7 +4,7 @@ This replaces the paper Church Attendance sheet with a web page ushers open on t
 
 It has two parts:
 
-- **The Sheet and its script** (`Code.gs` and `Report.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the page which rooms to show, and emails the report.
+- **The Sheet and its script** (`Code.gs`, `Report.gs` and `History.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the page which rooms to show, and emails the report.
 - **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. The church site forwards <https://gracetoanderson.com/ushercount> there, and that's the address ushers use.
 
 The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to. Instead, each submission must carry the **usher code**, a 6-digit number the script creates for you. Without it, a stranger who found the page couldn't add, change or look up attendance.
@@ -19,7 +19,7 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
 1. In the Sheet, open **Extensions → Apps Script**.
 2. Click "Untitled project" at the top and rename it **Usher Attendance**.
 3. You'll see a file called `Code.gs` with a few lines in it. Delete them, then paste in the entire contents of this folder's `Code.gs`.
-4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`.
+4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`. Do the same for `History.gs`, naming it `History`.
 5. Click the save icon (💾).
 
 ## 3. Run setup once
@@ -87,20 +87,32 @@ The Sheet has an **Attendance** menu (it appears a few seconds after the Sheet o
 
 Reports used to be sent as a PDF, made by way of a temporary Google Doc. They aren't anymore, so the script no longer needs the Drive API service. If it's listed under **Services** in Apps Script, you can leave it or remove it.
 
+## History from the old attendance sheet
+
+Attendance from July 2006 until the ushers' page was kept by hand in the **Attendance Report** spreadsheet. `History.gs` copies it into this Sheet, one tab per year: **History 2006**, **History 2007**, and so on.
+
+- Each tab has the old sheet's columns: Date, Bus, Keenagers/HGM, K4T/AWANA, Sunday AM, Auditorium, Kidstown, Sunday PM, Wednesday, the four Sunday School columns, and Notes. From 2024, the Children's Ministries numbers are added on the right, on the row with the same date.
+- Numbers stay numbers, and words like "No Service" or "Snow Day" stay as they were typed. A few dates in the old sheet had the wrong year (like "2/4/06" in the 2007 section); they're filed under the year they were listed in, with a note saying what was typed. Rows with nothing in them, and the monthly averages and summary tables, aren't copied.
+- To import, open Apps Script, click **History.gs** in the Files list, pick **importHistory** in the dropdown, and click **Run**. It takes a minute and shows how many rows each year got. You can also run it from the Sheet's **Attendance** menu.
+- Running it again rebuilds the History tabs from the old sheet. To correct a past number, fix it in the old sheet and import again, or edit the History tab and don't import again.
+
+The emailed report reads the History tabs for **Recent services** and **Compared with last year**: the same week last year, this year's average so far, and last year's average over the same weeks. The Total Attendance box also says how this service compares with the same week last year. The Attendance tab counts first; history fills in the dates before it. For Wednesday, the old sheet kept the count on the Sunday row, so the report dates it to that week's Wednesday.
+
 ## The Sheet
 
 - **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, and notes.
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
 - **Report Emails:** the addresses that get the report.
+- **History 2006** to **History 2026:** the old sheet's numbers, one tab per year (see above).
 
 You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** tab name and the existing header names unchanged.
 
 ## Updating the script
 
-Whenever `Code.gs` or `Report.gs` changes:
+Whenever `Code.gs`, `Report.gs` or `History.gs` changes:
 
 1. Paste the new version into Apps Script and save.
-2. Open **Code.gs** and run **setup** once (step 3 above). The dropdown lists only the open file's functions, so setup won't appear while Report.gs is open. If the new version needs a new permission, Google asks for it here. The ushers' page can't ask, so skipping this step makes submissions fail until someone runs setup.
+2. Open **Code.gs** and run **setup** once (step 3 above). The dropdown lists only the open file's functions, so setup won't appear while Report.gs or History.gs is open. If the new version needs a new permission, Google asks for it here. The ushers' page can't ask, so skipping this step makes submissions fail until someone runs setup.
 3. Click **Deploy → Manage deployments**, then click the pencil icon. Under **Version**, choose **New version**, then click **Deploy**.
 
 Don't use **New deployment**, because it creates a new URL and the page would stop reaching the script.
