@@ -1,29 +1,38 @@
 /**
- * Grace Baptist Church - Usher Attendance: emailed PDF report
+ * Grace Baptist Church - Usher Attendance: emailed report
  *
  * After each submission, Code.gs marks the row "Pending" in the Report
  * Emailed column and schedules sendPendingReports a few seconds later, so the
- * usher's phone doesn't wait on the PDF. sendPendingReports builds a two-page
- * report, turns it into a PDF by way of a temporary Google Doc, and emails it
- * to the addresses on the Report Emails tab.
- *
- * The report is HTML made of tables only: the Google Docs import that turns
- * it into a PDF ignores flexbox, grid and SVG.
+ * usher's phone doesn't wait on the email. sendPendingReports builds the
+ * report and emails it to the addresses on the Report Emails tab. The report
+ * is the body of the email, as HTML styled like the web page, with a plain-
+ * text version for email apps that don't show HTML.
  */
 
 const EMAILS_NAME = 'Report Emails';
 const REPORT_STATUS = 'Report Emailed';
-const REPORT_LOGO_URL = 'https://davidluttrull.github.io/grace-attendance/report-logo.png';
+// The web page's logo, made for its dark green header (600 x 210).
+const LOGO_URL = 'https://davidluttrull.github.io/grace-attendance/logo.png';
 const HISTORY_COUNT = 8;
 
-const C_DEEP = '#4E7A34';
-const C_BRAND = '#7BAE59';
-const C_TINT = '#E3EFD9';
-const C_DARK = '#3A3A3A';
-const C_MUTED = '#6B6B6B';
-const C_RULE = '#E6E6E6';
-const C_TRACK = '#F0F0F0';
-const SECTION_COLORS = [C_DEEP, C_BRAND, C_DARK, '#9A9A9A', '#B8CFA6'];
+// The web page's light theme.
+const THEME = {
+  deep: '#233617',    // header bar and totals
+  brand: '#7BAE58',   // heading underlines
+  mid: '#4E7A35',     // heading text
+  ink: '#1E2A16',
+  muted: '#5B6A50',
+  line: '#DCE7D3',    // borders
+  soft: '#F3F8EF',    // page background and subtotal rows
+  track: '#EEF2EA',   // empty part of a bar
+};
+// One color per section, in order, with the text color that reads on it.
+const SECTION_COLORS = [
+  { bg: '#4E7A35', ink: '#FFFFFF' },
+  { bg: '#7BAE58', ink: '#10160C' },
+  { bg: '#8A9A7E', ink: '#FFFFFF' },
+  { bg: '#B8CFA6', ink: '#1E2A16' },
+];
 
 /** Adds an Attendance menu to the Sheet. */
 function onOpen() {
@@ -98,15 +107,13 @@ function emailReportForRow_(sheet, cols, row, recipients, updated) {
   }
   try {
     const data = reportData_(sheet, cols, row, tz);
-    const pdf = reportPdf_(data);
     const label = serviceName_(data) + ', ' + Utilities.formatDate(data.date, tz, 'MMM d');
     MailApp.sendEmail({
       to: recipients.join(','),
       subject: (updated ? 'Updated attendance: ' : 'Attendance: ') + label + ' (' + data.total + ')',
-      htmlBody: emailHtml_(data, updated),
+      htmlBody: reportHtml_(data, updated),
       body: emailText_(data, updated),
       name: 'Grace Attendance',
-      attachments: [pdf],
     });
     cell.setValue('Sent ' + Utilities.formatDate(new Date(), tz, 'M/d h:mm a') + ' to ' + recipients.length);
     return 'Report emailed to ' + recipients.join(', ') + '.';
@@ -134,7 +141,7 @@ function ensureEmailsTab_() {
     tab.getRange(1, 1, 1, 2).setValues([['Email the report to', 'One address per row in column A. ' +
       'A Google Group or routing address works too. Leave the list empty to stop sending.']]);
     tab.getRange(1, 1).setFontWeight('bold').setFontColor('#ffffff').setBackground('#233617');
-    tab.getRange(1, 2).setFontColor(C_MUTED).setFontStyle('italic');
+    tab.getRange(1, 2).setFontColor(THEME.muted).setFontStyle('italic');
     tab.setColumnWidth(1, 280);
     tab.setFrozenRows(1);
   }
@@ -197,63 +204,14 @@ function serviceName_(data) {
   return data.service === 'Other' ? data.otherName : data.service;
 }
 
-// ---- PDF --------------------------------------------------------------------
+// ---- Email HTML -------------------------------------------------------------
+//
+// The report is the email itself, styled like the web pages. Email apps ignore
+// most CSS, so everything is tables, inline styles and inline-block slots:
+// side by side on a computer, stacked and centered on a phone.
 
-/**
- * HTML -> temporary Google Doc (Drive converts it) -> PDF. The Doc is trashed afterwards.
- * The conversion needs the Drive API advanced service (Services + > Drive API in the editor).
- */
-function reportPdf_(data) {
-  if (typeof Drive === 'undefined') {
-    throw new Error('The Drive API service is off. In Apps Script, click + next to Services, ' +
-      'choose Drive API, click Add, then try again.');
-  }
-  const html = Utilities.newBlob(reportHtml_(data), 'text/html', 'report.html');
-  const title = 'Attendance report (temporary)';
-  // Drive API v3 (the editor's default) has create; v2 has insert.
-  const created = Drive.Files.create
-    ? Drive.Files.create({ name: title, mimeType: MimeType.GOOGLE_DOCS }, html)
-    : Drive.Files.insert({ title: title, mimeType: MimeType.GOOGLE_DOCS }, html, { convert: true });
-  const file = DriveApp.getFileById(created.id);
-  try {
-    finishDoc_(DocumentApp.openById(created.id));
-    const name = 'Attendance ' + Utilities.formatDate(data.date, data.tz, 'yyyy-MM-dd') + ' ' + serviceName_(data) + '.pdf';
-    return file.getAs('application/pdf').setName(name);
-  } finally {
-    file.setTrashed(true);
-  }
-}
-
-/** Page margins, the logo and the page break, which the HTML import can't carry. */
-function finishDoc_(doc) {
-  const body = doc.getBody();
-  body.setMarginTop(36).setMarginBottom(36).setMarginLeft(43).setMarginRight(43);
-
-  const logo = takePlaceholder_(body, 'LOGO');
-  if (logo) {
-    try {
-      const img = logo.insertInlineImage(0, UrlFetchApp.fetch(REPORT_LOGO_URL).getBlob());
-      const h = 52;
-      img.setWidth(Math.round(img.getWidth() * h / img.getHeight())).setHeight(h);
-    } catch (e) {
-      logo.appendText('GRACE BAPTIST CHURCH').setBold(true).setFontSize(16);
-    }
-  }
-  const pageBreak = takePlaceholder_(body, 'PAGEBREAK');
-  if (pageBreak) pageBreak.appendPageBreak();
-  doc.saveAndClose();
-}
-
-/** Removes a [[NAME]] marker and returns the paragraph it was in. */
-function takePlaceholder_(body, name) {
-  const found = body.findText('\\[\\[' + name + '\\]\\]');
-  if (!found) return null;
-  const text = found.getElement().asText();
-  text.deleteText(found.getStartOffset(), found.getEndOffsetInclusive());
-  return text.getParent().asParagraph();
-}
-
-// ---- Report HTML ------------------------------------------------------------
+const FONT = "font-family:Poppins,'Helvetica Neue',Helvetica,Arial,sans-serif;";
+const DASH = '<span style="color:#AAAAAA">—</span>';
 
 function esc_(s) {
   return String(s === null || s === undefined ? '' : s)
@@ -270,271 +228,266 @@ function pct_(n, total) {
   return total ? (Math.round(n * 1000 / total) / 10).toFixed(1) + '%' : '';
 }
 
-/** A table cell. Docs draws a border on every cell unless told not to. */
-function td_(content, style) {
-  return '<td style="border:none;padding:0;vertical-align:top;' + (style || '') + '">' + content + '</td>';
+function fmtDate_(d, tz, pattern) {
+  return d instanceof Date ? Utilities.formatDate(d, tz, pattern) : '';
 }
 
-function table_(rows, width) {
-  return '<table style="border-collapse:collapse;width:' + width + 'pt">' + rows + '</table>';
+/** A full-width layout table. */
+function eTable_(rows, style) {
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;' + (style || '') + '">' + rows + '</table>';
 }
 
-function heading_(text, top) {
-  return '<p style="margin:' + (top === undefined ? 14 : top) + 'pt 0 2pt;font-size:11pt;font-weight:bold;' +
-    'color:' + C_DEEP + ';letter-spacing:1px">' + esc_(text.toUpperCase()) + '</p>';
+/** One white card on the page, like the web page's cards. */
+function eCard_(inner) {
+  return '<tr><td style="padding-top:12px">' +
+    eTable_('<tr><td style="padding:16px 14px">' + inner + '</td></tr>',
+      'background:#FFFFFF;border:1px solid ' + THEME.line + ';border-radius:16px;border-collapse:separate') + '</td></tr>';
 }
 
-function caption_(text) {
-  return '<p style="margin:0 0 6pt;font-size:8.5pt;color:' + C_MUTED + '">' + esc_(text) + '</p>';
+function eHeading_(text, top) {
+  return '<p style="' + FONT + 'margin:' + (top === undefined ? 0 : top) + 'px 0 4px;font-size:13px;font-weight:600;letter-spacing:1px;' +
+    'text-transform:uppercase;color:' + THEME.mid + '">' + esc_(text) + '</p>';
+}
+
+function eCaption_(text) {
+  return '<p style="' + FONT + 'margin:0 0 10px;font-size:12px;line-height:1.4;color:' + THEME.muted + '">' + esc_(text) + '</p>';
+}
+
+function eSubhead_(text, top) {
+  return '<p style="' + FONT + 'margin:' + (top === undefined ? 10 : top) + 'px 0 4px;font-size:14px;font-weight:600;color:' + THEME.ink + '">' + esc_(text) + '</p>';
 }
 
 /**
- * A bar drawn as shaded non-breaking spaces. Nested tables would be neater
- * HTML, but Docs pads each one with an empty line.
+ * One of two side-by-side slots in a card (eRow_). Each is up to 304px wide
+ * with 8px of padding on both sides, so two fit across the 608px inside a
+ * card with a 16px gap, and one alone sits centered on a phone.
  */
-function barSpan_(n, max, color, width) {
-  const SPACE = 2.74; // a non-breaking space at 8pt, as measured in the Docs PDF
-  const chars = Math.max(1, Math.round(width / SPACE));
-  const span = function (bg, count, text) {
-    return '<span style="font-size:8pt;background-color:' + bg + '">' + (text || '') +
-      new Array(Math.max(0, count) + 1).join('&nbsp;') + '</span>';
-  };
-  if (n === null) {
-    return '<span style="font-size:8pt;font-style:italic;color:' + C_MUTED + ';background-color:' + C_TRACK + '">&nbsp;not&nbsp;reported</span>' +
-      span(C_TRACK, chars - 20);
-  }
-  const fill = n ? Math.max(1, Math.round(chars * n / Math.max(max, 1))) : 0;
-  return span(color, fill) + span(C_TRACK, chars - fill);
+function eSlot_(html, style) {
+  return '<div style="display:inline-block;vertical-align:top;width:100%;max-width:304px;text-align:left;font-size:14px;line-height:1.4;' + (style || '') + '">' +
+    eTable_('<tr><td style="padding:0 8px">' + html + '</td></tr>') + '</div>';
 }
 
-/** Horizontal bar rows: label | bar | number. Blank areas read "not reported". */
-function bars_(items, color, width) {
-  const labelW = Math.round(width * 0.42), numW = 30, barW = width - labelW - numW;
+/** A row of slots: side by side when there's room, stacked and centered when there isn't. */
+function eRow_(slots) {
+  return '<div style="font-size:0;line-height:0;text-align:center;margin:0 -8px">' + slots + '</div>';
+}
+
+/** A horizontal bar, n out of max, on a pale track. */
+function eBar_(n, max, color) {
+  const w = n ? Math.max(2, Math.round(n * 100 / Math.max(max, 1))) : 0;
+  return eTable_('<tr>' +
+    (w ? '<td width="' + w + '%" style="height:10px;background:' + color + ';font-size:0;line-height:0">&nbsp;</td>' : '') +
+    (w < 100 ? '<td width="' + (100 - w) + '%" style="height:10px;background:' + THEME.track + ';font-size:0;line-height:0">&nbsp;</td>' : '') +
+    '</tr>', 'border-radius:5px;overflow:hidden;border-collapse:separate');
+}
+
+/** Bar rows: label | bar | number. Blank areas read "not reported". */
+function eBars_(items, color) {
   const max = Math.max.apply(null, items.map(function (a) { return a.n || 0; }).concat([1]));
-  return table_(items.map(function (a) {
+  return eTable_(items.map(function (a) {
     const parts = splitName_(a.name);
-    const label = '<p style="margin:0;font-size:9.5pt;font-weight:bold">' + esc_(parts.name) + '</p>' +
-      (parts.detail ? '<p style="margin:0;font-size:7.5pt;color:' + C_MUTED + '">' + esc_(parts.detail) + '</p>' : '');
-    return '<tr>' + td_(label, 'width:' + labelW + 'pt;padding:3pt 4pt 3pt 0') +
-      td_('<p style="margin:0">' + barSpan_(a.n, max, color, barW - 20) + '</p>', 'width:' + barW + 'pt;padding:5pt 0 3pt') +
-      td_(a.n === null ? '' : '<b>' + a.n + '</b>', 'width:' + numW + 'pt;text-align:right;padding:3pt 0;font-size:10pt') +
-      '</tr>';
-  }).join(''), width);
+    return '<tr><td style="' + FONT + 'width:44%;padding:6px 8px 6px 0;font-size:14px;line-height:1.25;color:' + THEME.ink + ';border-bottom:1px solid ' + THEME.line + '">' +
+      esc_(parts.name) + (parts.detail ? '<br><span style="font-size:11px;color:' + THEME.muted + '">' + esc_(parts.detail) + '</span>' : '') + '</td>' +
+      '<td style="padding:6px 0;border-bottom:1px solid ' + THEME.line + '">' +
+      (a.n === null ? '<span style="' + FONT + 'font-size:11px;font-style:italic;color:' + THEME.muted + '">not reported</span>' : eBar_(a.n, max, color)) + '</td>' +
+      '<td style="' + FONT + 'width:40px;padding:6px 0 6px 8px;font-size:14px;font-weight:600;text-align:right;color:' + THEME.ink + ';border-bottom:1px solid ' + THEME.line + '">' +
+      (a.n === null ? '' : a.n) + '</td></tr>';
+  }).join(''));
+}
+
+/** A quick box: label, big number, a line under it. */
+function eBox_(label, value, sub, dark) {
+  const T = THEME;
+  return eSlot_(eTable_('<tr><td style="' + FONT + 'padding:12px 14px;line-height:1.3;background:' + (dark ? T.deep : '#FFFFFF') +
+    ';border:1px solid ' + (dark ? T.deep : T.line) + ';border-radius:12px;height:84px;vertical-align:top">' +
+    '<p style="margin:0;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:' + (dark ? '#CFE3C0' : T.muted) + '">' + esc_(label) + '</p>' +
+    '<p style="margin:3px 0 0;font-size:30px;line-height:1.1;font-weight:700;color:' + (dark ? '#FFFFFF' : T.ink) + '">' + value + '</p>' +
+    '<p style="margin:3px 0 0;font-size:12px;color:' + (dark ? '#CFE3C0' : T.muted) + '">' + sub + '</p></td></tr>', 'border-collapse:separate'), 'margin-top:10px');
 }
 
 /** The auditorium as a floor plan, when its areas are the usual five. */
-function auditoriumPlan_(section) {
+function eFloorPlan_(section) {
+  const T = THEME;
   const n = {};
   section.areas.forEach(function (a) { n[a.name] = a.n; });
   const names = ['North Wing', 'North Main', 'South Main', 'South Wing', 'Platform'];
   if (!names.every(function (k) { return k in n; })) return '';
   const total = section.subtotal;
-  const block = function (name, bg, w) {
+  const block = function (name, bg) {
     const v = n[name];
-    return td_('<p style="margin:0;font-size:22pt;font-weight:bold;color:#ffffff">' + (v === null ? '—' : v) + '</p>' +
-      '<p style="margin:0;font-size:9.5pt;color:#ffffff">' + esc_(name) + '</p>' +
-      '<p style="margin:0;font-size:7.5pt;color:' + C_TINT + '">' + (v === null ? 'not reported' : pct_(v, total) + ' of auditorium') + '</p>',
-      'width:' + w + 'pt;background:' + bg + ';text-align:center;padding:12pt 4pt');
+    return '<td width="25%" style="' + FONT + 'padding:12px 4px;background:' + bg + ';text-align:center;border:3px solid #FFFFFF;border-radius:10px">' +
+      '<p style="margin:0;font-size:24px;line-height:1.1;font-weight:700;color:#FFFFFF">' + (v === null ? '—' : v) + '</p>' +
+      '<p style="margin:2px 0 0;font-size:12px;line-height:1.2;color:#FFFFFF">' + esc_(name) + '</p>' +
+      '<p style="margin:2px 0 0;font-size:11px;color:#CFE3C0">' + (v === null ? 'not reported' : pct_(v, total)) + '</p></td>';
   };
-  const gap = td_('', 'width:8pt');
   const plat = n['Platform'];
-  return table_('<tr>' + td_('', 'width:131pt') + td_('', 'width:8pt') +
-      td_('<p style="margin:0;font-size:7.5pt;color:' + C_MUTED + '">PLATFORM</p><p style="margin:0;font-weight:bold">' +
-        (plat === null ? '—' : plat) + '</p>', 'width:248pt;background:' + C_TINT + ';text-align:center;padding:4pt;' +
-        'border:1pt solid ' + C_BRAND) +
-      td_('', 'width:8pt') + td_('', 'width:131pt') + '</tr>', 526) +
-    '<p style="margin:0;font-size:4pt">&nbsp;</p>' +
-    table_('<tr>' + block('North Wing', '#61894A', 115) + gap + block('North Main', C_DEEP, 124) + gap +
-      block('South Main', C_DEEP, 124) + gap + block('South Wing', '#61894A', 115) + '</tr>', 526);
+  return eTable_('<tr><td width="20%"></td><td width="60%" style="' + FONT + 'padding:6px;background:' + T.soft + ';border:1px solid ' + T.brand +
+      ';border-radius:10px;text-align:center"><span style="font-size:11px;letter-spacing:.6px;color:' + T.muted + '">PLATFORM</span> ' +
+      '<b style="font-size:16px;color:' + T.ink + '">' + (plat === null ? '—' : plat) + '</b>' +
+      (plat === null ? '' : ' <span style="font-size:11px;color:' + T.muted + '">' + pct_(plat, total) + '</span>') + '</td><td width="20%"></td></tr>',
+      'border-collapse:separate') +
+    eTable_('<tr>' + block('North Wing', T.mid) + block('North Main', T.deep) + block('South Main', T.deep) + block('South Wing', T.mid) + '</tr>',
+      'margin-top:6px;border-collapse:separate;table-layout:fixed');
 }
 
-function fmtDate_(d, tz, pattern) {
-  return d instanceof Date ? Utilities.formatDate(d, tz, pattern) : '';
-}
-
-/** The two-page report. Letter page, 526pt between the margins set in finishDoc_. */
-function reportHtml_(d) {
-  const W = 526;
+/** The report, as the email's HTML body. */
+function reportHtml_(d, updated) {
+  const T = THEME;
   const svc = serviceName_(d);
-  const longDate = fmtDate_(d.date, d.tz, 'EEEE, MMMM d, yyyy');
-  const shortDate = fmtDate_(d.date, d.tz, 'MMMM d, yyyy');
   const prev = d.history.length > 1 ? d.history[d.history.length - 2] : null;
-  const h = [];
-
-  // Body padding becomes the page margins on import (finishDoc_ sets them again to be sure).
-  h.push('<html><head><meta charset="utf-8"></head>' +
-    '<body style="max-width:526pt;padding:36pt 43pt;font-family:Arial;font-size:10pt;color:#1A1A1A">');
-
-  // Header: logo | title
-  h.push(table_('<tr>' + td_('<p style="margin:0">[[LOGO]]</p>', 'width:200pt;vertical-align:middle;padding-bottom:8pt;border-bottom:3pt solid ' + C_BRAND) +
-    td_('<p style="margin:0;text-align:right;font-size:17pt;font-weight:bold">' + esc_(svc.toUpperCase()) + ' ATTENDANCE</p>' +
-      '<p style="margin:0;text-align:right;color:' + C_MUTED + '">' + esc_(longDate) + '</p>',
-      'width:326pt;vertical-align:middle;padding-bottom:8pt;border-bottom:3pt solid ' + C_BRAND) + '</tr>', W));
-
-  // KPI tiles: total, then one per section
-  const tiles = [];
-  const tileW = Math.floor((W - 8 * d.sections.length) / (d.sections.length + 1.3));
-  const firstW = W - 8 * d.sections.length - tileW * d.sections.length;
   const change = prev ? d.total - prev.total : null;
-  const totalNote = prev
-    ? (change === 0 ? 'Same as' : (change > 0 ? 'Up ' + change + ' from' : 'Down ' + (-change) + ' from')) +
-      ' ' + fmtDate_(prev.date, d.tz, 'M/d')
+  const changeNote = prev
+    ? (change === 0 ? 'Same as' : (change > 0 ? 'Up ' + change + ' from' : 'Down ' + (-change) + ' from')) + ' ' + fmtDate_(prev.date, d.tz, 'M/d')
     : 'All areas';
-  tiles.push(td_('<p style="margin:0;font-size:7.5pt;color:' + C_TINT + '">TOTAL ATTENDANCE</p>' +
-    '<p style="margin:0;font-size:28pt;font-weight:bold;color:#ffffff">' + d.total + '</p>' +
-    '<p style="margin:0;font-size:8pt;color:' + C_TINT + '">' + esc_(totalNote) + '</p>',
-    'width:' + firstW + 'pt;background:' + C_DEEP + ';padding:8pt 10pt'));
-  d.sections.forEach(function (s) {
-    tiles.push(td_('', 'width:8pt'));
-    tiles.push(td_('<p style="margin:0;font-size:7.5pt;color:' + C_MUTED + '">' + esc_(s.title.toUpperCase()) + '</p>' +
-      '<p style="margin:0;font-size:28pt;font-weight:bold">' + s.subtotal + '</p>' +
-      '<p style="margin:0;font-size:8pt;color:' + C_MUTED + '">' + (pct_(s.subtotal, d.total) ? pct_(s.subtotal, d.total) + ' of total' : '&nbsp;') + '</p>',
-      'width:' + tileW + 'pt;padding:8pt 10pt;border:1pt solid #D9D9D9'));
-  });
-  h.push('<p style="margin:0;font-size:6pt">&nbsp;</p>');
-  h.push(table_('<tr>' + tiles.join('') + '</tr>', W));
+  const out = [];
+  const preview = d.total + ' at ' + svc + ' · ' + d.sections.map(function (s) { return s.title + ' ' + s.subtotal; }).join(' · ');
 
-  // Where everyone was: one stacked bar
-  h.push(heading_('Where everyone was'));
-  h.push(caption_('Share of the ' + d.total + ' people counted, by area of the building.'));
+  out.push('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"></head>' +
+    '<body style="margin:0;padding:0;background:' + T.soft + '">' +
+    '<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">' + esc_(preview) + '</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + T.soft + '" style="background:' + T.soft + '">' +
+    '<tr><td align="center" style="padding:16px 6px 24px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse">');
+
+  // Header bar, like the top of the web page
+  out.push('<tr><td bgcolor="' + T.deep + '" align="center" style="background:' + T.deep + ';border-radius:16px;padding:20px 18px 18px">' +
+    '<img src="' + LOGO_URL + '" width="149" height="52" alt="Grace Baptist Church" style="display:block;margin:0 auto 10px;border:0;height:52px;width:149px">' +
+    '<p style="' + FONT + 'margin:0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#CFE3C0">' +
+    (updated ? 'Updated attendance' : 'Attendance') + '</p>' +
+    '<p style="' + FONT + 'margin:2px 0 0;font-size:22px;font-weight:700;color:#FFFFFF">' + esc_(svc) + '</p>' +
+    '<p style="' + FONT + 'margin:2px 0 0;font-size:14px;color:#CFE3C0">' + esc_(fmtDate_(d.date, d.tz, 'EEEE, MMMM d, yyyy')) + '</p>' +
+    '</td></tr>');
+
+  // Quick boxes: the total, then one per section, two across
+  const boxes = [eBox_('Total attendance', String(d.total), esc_(changeNote), true)].concat(d.sections.map(function (s) {
+    return eBox_(s.title, String(s.subtotal), pct_(s.subtotal, d.total) ? pct_(s.subtotal, d.total) + ' of total' : '&nbsp;');
+  }));
+  let quick = '';
+  for (let i = 0; i < boxes.length; i += 2) quick += eRow_(boxes[i] + (boxes[i + 1] || ''));
+
+  // Where everyone was: one stacked bar and its legend
+  let where = '';
   if (d.total) {
     const cells = [], legend = [];
+    // Widths in whole percents; the last segment takes what's left so they add up to 100.
+    const shown = d.sections.filter(function (s) { return s.subtotal; });
+    let used = 0;
     d.sections.forEach(function (s, i) {
       const color = SECTION_COLORS[i % SECTION_COLORS.length];
       if (s.subtotal) {
-        const share = s.subtotal / d.total;
-        cells.push(td_(share >= 0.07 ? '<b>' + s.subtotal + '</b>' : '&nbsp;',
-          'width:' + Math.max(1, Math.round(W * share)) + 'pt;background:' + color + ';color:#ffffff;text-align:center;padding:6pt 0'));
+        const last = s === shown[shown.length - 1];
+        const share = last ? 100 - used : Math.max(1, Math.round(s.subtotal * 100 / d.total));
+        used += share;
+        cells.push('<td width="' + share + '%" style="' + FONT + 'height:30px;background:' + color.bg + ';color:' + color.ink +
+          ';text-align:center;font-size:13px;font-weight:600">' + (share >= 8 ? s.subtotal : '&nbsp;') + '</td>');
       }
-      legend.push('<span style="color:' + color + '">&#9632;</span> <b>' + esc_(s.title) + '</b> ' + s.subtotal +
-        ' &middot; ' + pct_(s.subtotal, d.total));
+      legend.push('<span style="white-space:nowrap;margin-right:14px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' +
+        color.bg + ';margin-right:5px"></span><b>' + esc_(s.title) + '</b> ' + s.subtotal + ' · ' + pct_(s.subtotal, d.total) + '</span> ');
     });
-    h.push(table_('<tr>' + cells.join('') + '</tr>', W));
-    h.push('<p style="margin:4pt 0 0;font-size:8.5pt">' + legend.join('&nbsp;&nbsp;&nbsp;&nbsp;') + '</p>');
+    where = eHeading_('Where everyone was', 18) + eCaption_('Share of the ' + d.total + ' people counted, by area of the building.') +
+      eTable_('<tr>' + cells.join('') + '</tr>', 'border-radius:8px;overflow:hidden;border-collapse:separate') +
+      '<p style="' + FONT + 'margin:8px 0 0;font-size:13px;line-height:1.8;color:' + T.ink + '">' + legend.join('') + '</p>';
   }
+  out.push(eCard_(quick + where));
 
   // Auditorium floor plan (or bars if its areas were renamed)
   const aud = d.sections[0];
-  const plan = auditoriumPlan_(aud);
-  h.push(heading_(aud.title + ' by section'));
-  h.push(caption_(aud.subtotal + ' in the ' + aud.title.toLowerCase() + '.'));
-  h.push(plan || bars_(aud.areas, SECTION_COLORS[0], W));
+  out.push(eCard_(eHeading_(aud.title + ' by section') + eCaption_(aud.subtotal + ' in the ' + aud.title.toLowerCase() + '.') +
+    (eFloorPlan_(aud) || eBars_(aud.areas, SECTION_COLORS[0].bg))));
 
-  // Remaining sections side by side, two per row
+  // The other sections, two across
   const rest = d.sections.slice(1);
-  for (let i = 0; i < rest.length; i += 2) {
-    const col = function (s, idx) {
-      if (!s) return td_('', 'width:255pt');
-      return td_(heading_(s.title, 12) + caption_(s.subtotal + ' counted.') +
-        bars_(s.areas, SECTION_COLORS[(idx + 1) % SECTION_COLORS.length], 255), 'width:255pt');
-    };
-    h.push(table_('<tr>' + col(rest[i], i) + td_('', 'width:16pt') + col(rest[i + 1], i + 1) + '</tr>', W));
+  if (rest.length) {
+    let html = '';
+    for (let i = 0; i < rest.length; i += 2) {
+      const col = function (s, idx) {
+        if (!s) return '';
+        return eSlot_(eSubhead_(s.title, 4) + eCaption_(s.subtotal + ' counted.') + eBars_(s.areas, SECTION_COLORS[(idx + 1) % SECTION_COLORS.length].bg), 'margin-bottom:12px');
+      };
+      html += eRow_(col(rest[i], i) + col(rest[i + 1], i + 1));
+    }
+    out.push(eCard_(eHeading_('Other areas') + html));
   }
 
-  // ---- Page 2
-  // The HTML import ignores page-break styles, so finishDoc_ puts the break here.
-  h.push('<p style="margin:0;font-size:1pt">[[PAGEBREAK]]</p>');
-  h.push(table_('<tr>' + td_('<b>Grace Baptist Church</b> &middot; ' + esc_(svc) + ' Attendance',
-    'width:340pt;font-size:8pt;color:' + C_MUTED + ';padding-bottom:4pt;border-bottom:1.5pt solid ' + C_BRAND) +
-    td_(esc_(shortDate), 'width:186pt;text-align:right;font-size:8pt;color:' + C_MUTED + ';padding-bottom:4pt;border-bottom:1.5pt solid ' + C_BRAND) +
-    '</tr>', W));
-
-  // Full count table
-  // Docs sizes columns from the first row, so it carries the widths.
-  const th = function (t, w, right) {
-    return td_(t, 'width:' + w + 'pt;font-size:7.5pt;color:' + C_MUTED + ';padding:4pt 4pt;border-bottom:1.5pt solid ' + C_BRAND +
-      (right ? ';text-align:right' : ''));
+  // Full count
+  const cell = function (html, st) {
+    return '<td style="' + FONT + 'padding:6px 5px;font-size:13px;color:' + T.ink + ';border-bottom:1px solid ' + T.line + ';' + (st || '') + '">' + html + '</td>';
   };
-  const rowsHtml = ['<tr>' + th('AREA', 152) + th('COUNT', 48, true) + th('SHARE', 48, true) + '</tr>'];
-  const line = 'border-bottom:0.5pt solid ' + C_RULE + ';padding:3pt 4pt;font-size:9pt';
+  const head = '<tr>' + ['Area', 'Count', 'Share'].map(function (t, i) {
+    return '<td style="' + FONT + 'padding:4px 5px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:' + T.muted +
+      ';border-bottom:2px solid ' + T.brand + (i ? ';text-align:right' : '') + '">' + t + '</td>';
+  }).join('') + '</tr>';
+  const rows = [head];
   d.sections.forEach(function (s) {
     s.areas.forEach(function (a) {
       const parts = splitName_(a.name);
-      rowsHtml.push('<tr>' +
-        td_(esc_(parts.name) + (parts.detail ? ' <span style="font-size:7.5pt;color:' + C_MUTED + '">(' + esc_(parts.detail) + ')</span>' : ''), line) +
-        td_(a.n === null ? '<span style="color:#AAAAAA">—</span>' : String(a.n), line + ';text-align:right') +
-        td_(a.n === null ? '' : pct_(a.n, d.total), line + ';text-align:right') + '</tr>');
+      rows.push('<tr>' + cell(esc_(parts.name) + (parts.detail ? ' <span style="font-size:11px;color:' + T.muted + '">(' + esc_(parts.detail) + ')</span>' : '')) +
+        cell(a.n === null ? DASH : String(a.n), 'text-align:right') + cell(a.n === null ? '' : pct_(a.n, d.total), 'text-align:right;color:' + T.muted) + '</tr>');
     });
-    const sub = 'background:' + C_TINT + ';font-weight:bold;padding:3pt 4pt;font-size:9pt';
-    rowsHtml.push('<tr>' + td_(esc_(s.title) + ' subtotal', sub) + td_(String(s.subtotal), sub + ';text-align:right') +
-      td_(pct_(s.subtotal, d.total), sub + ';text-align:right') + '</tr>');
+    const sub = 'background:' + T.soft + ';font-weight:600;';
+    rows.push('<tr>' + cell(esc_(s.title) + ' subtotal', sub) + cell(String(s.subtotal), sub + 'text-align:right') +
+      cell(pct_(s.subtotal, d.total), sub + 'text-align:right') + '</tr>');
   });
-  const grand = 'background:' + C_DEEP + ';color:#ffffff;font-weight:bold;padding:4pt 4pt;font-size:10pt';
-  rowsHtml.push('<tr>' + td_('Total attendance', grand) + td_(String(d.total), grand + ';text-align:right') +
-    td_(d.total ? '100%' : '', grand + ';text-align:right') + '</tr>');
-  const left = heading_('Full count', 12) + caption_('Every area as entered. A dash means it was left blank.') +
-    table_(rowsHtml.join(''), 248);
+  const grand = 'background:' + T.deep + ';color:#FFFFFF;font-weight:600;font-size:14px;';
+  rows.push('<tr>' + cell('Total attendance', grand) + cell(String(d.total), grand + 'text-align:right') + cell(d.total ? '100%' : '', grand + 'text-align:right') + '</tr>');
+  const full = eSubhead_('Full count', 4) + eCaption_('Every area as entered. A dash means it was left blank.') + eTable_(rows.join(''));
 
-  // Recent services of the same kind
-  const right = [];
-  right.push(heading_('Recent ' + svc + ' services', 12));
+  // Recent services of the same kind, and others the same day
+  const recent = [eSubhead_('Recent ' + svc + ' services', 4)];
   if (d.history.length > 1) {
-    right.push(caption_('This service and the ones before it.'));
+    recent.push(eCaption_('This service and the ones before it.'));
     const max = Math.max.apply(null, d.history.map(function (e) { return e.total; }).concat([1]));
-    right.push(table_(d.history.slice().reverse().map(function (e) {
-      const b = e.current ? function (x) { return '<b>' + x + '</b>'; } : function (x) { return x; };
-      return '<tr>' + td_(b(fmtDate_(e.date, d.tz, 'MMM d')), 'width:52pt;font-size:9pt;padding:2pt 0') +
-        td_('<p style="margin:0">' + barSpan_(e.total, max, e.current ? C_DEEP : '#A8C496', 132) + '</p>', 'width:154pt;padding:3pt 0 2pt') +
-        td_(b(e.total), 'width:40pt;text-align:right;font-size:9pt;padding:2pt 0') + '</tr>';
-    }).join(''), 246));
+    recent.push(eTable_(d.history.slice().reverse().map(function (e) {
+      const b = e.current ? 'font-weight:700;' : '';
+      return '<tr><td style="' + FONT + 'width:52px;padding:5px 8px 5px 0;font-size:13px;color:' + T.ink + ';' + b + '">' + fmtDate_(e.date, d.tz, 'MMM d') + '</td>' +
+        '<td style="padding:5px 0">' + eBar_(e.total, max, e.current ? T.deep : '#A8C496') + '</td>' +
+        '<td style="' + FONT + 'width:44px;padding:5px 0 5px 8px;font-size:13px;text-align:right;color:' + T.ink + ';' + b + '">' + e.total + '</td></tr>';
+    }).join('')));
   } else {
-    right.push(caption_('This is the first ' + svc + ' service recorded. Comparisons will appear here as more are logged.'));
+    recent.push(eCaption_('This is the first ' + svc + ' service recorded. Comparisons will appear here as more are logged.'));
   }
   if (d.sameDay.length) {
-    right.push(heading_('Same day', 12));
-    right.push(table_(d.sameDay.map(function (e) {
-      return '<tr>' + td_(esc_(e.name), 'width:200pt;font-size:9pt;padding:2pt 0') +
-        td_('<b>' + e.total + '</b>', 'width:46pt;text-align:right;font-size:9pt;padding:2pt 0') + '</tr>';
-    }).join(''), 246));
+    recent.push(eSubhead_('Same day', 14));
+    recent.push(eTable_(d.sameDay.map(function (e) {
+      return '<tr>' + cell(esc_(e.name)) + cell('<b>' + e.total + '</b>', 'text-align:right') + '</tr>';
+    }).join('')));
   }
+  out.push(eCard_(eRow_(eSlot_(full, 'margin-bottom:12px') + eSlot_(recent.join(''), 'margin-bottom:12px'))));
 
-  // Service details
-  right.push(heading_('Service details', 14));
-  right.push(table_('<tr>' + td_('<p style="margin:0;font-size:7.5pt;color:' + C_MUTED + '">BULLETINS LEFT OVER</p>' +
-    '<p style="margin:0;font-size:16pt;font-weight:bold">' + (d.bulletins === null ? '—' : d.bulletins) + '</p>',
-    'width:246pt;padding:6pt 8pt;border:1pt solid #D9D9D9') + '</tr>', 246));
-  const doorRows = d.doors.map(function (x) {
-    return '<tr>' + td_('Door ' + x.n, 'width:60pt;font-size:9pt;padding:2pt 4pt;border-bottom:0.5pt solid ' + C_RULE) +
-      td_(x.name ? esc_(x.name) : '<span style="color:#AAAAAA">—</span>', 'width:186pt;font-size:9pt;padding:2pt 4pt;border-bottom:0.5pt solid ' + C_RULE) + '</tr>';
-  });
-  right.push('<p style="margin:0;font-size:6pt">&nbsp;</p>');
-  right.push(table_('<tr>' + td_('DOOR', 'width:60pt;font-size:7.5pt;color:' + C_MUTED + ';padding:3pt 4pt;border-bottom:1.5pt solid ' + C_BRAND) +
-    td_('USHER', 'width:186pt;font-size:7.5pt;color:' + C_MUTED + ';padding:3pt 4pt;border-bottom:1.5pt solid ' + C_BRAND) + '</tr>' +
-    doorRows.join(''), 246));
+  // Service details: bulletins, door ushers, who counted, notes
+  const doors = eTable_('<tr>' + ['Door', 'Usher'].map(function (t) {
+    return '<td style="' + FONT + 'padding:4px 5px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:' + T.muted + ';border-bottom:2px solid ' + T.brand + '">' + t + '</td>';
+  }).join('') + '</tr>' + d.doors.map(function (x) {
+    return '<tr>' + cell('Door ' + x.n, 'width:70px') + cell(x.name ? esc_(x.name) : DASH) + '</tr>';
+  }).join(''));
   const by = d.submittedBy ? 'Counted by ' + d.submittedBy : 'Counted';
   const at = d.submittedAt instanceof Date ? ' on ' + fmtDate_(d.submittedAt, d.tz, 'M/d/yyyy') + ' at ' + fmtDate_(d.submittedAt, d.tz, 'h:mm a') : '';
-  right.push('<p style="margin:8pt 0 0;font-size:8.5pt;color:' + C_MUTED + '">' + esc_(by + at) + '.</p>');
-  if (d.notes) {
-    right.push(heading_('Notes', 12));
-    right.push('<p style="margin:0;font-size:9pt">' + esc_(d.notes) + '</p>');
-  }
+  const left = eSubhead_('Bulletins left over', 4) +
+    '<p style="' + FONT + 'margin:0;font-size:30px;font-weight:700;color:' + T.ink + '">' + (d.bulletins === null ? '—' : d.bulletins) + '</p>' +
+    '<p style="' + FONT + 'margin:10px 0 0;font-size:13px;color:' + T.muted + '">' + esc_(by + at) + '.</p>' +
+    (d.notes ? eSubhead_('Notes', 14) + '<p style="' + FONT + 'margin:0;font-size:14px;line-height:1.45;color:' + T.ink + '">' + esc_(d.notes) + '</p>' : '');
+  out.push(eCard_(eHeading_('Service details') + eRow_(eSlot_(left, 'margin-bottom:12px') + eSlot_(eSubhead_('Door ushers', 4) + doors, 'margin-bottom:12px'))));
 
-  h.push(table_('<tr>' + td_(left, 'width:262pt') + td_('', 'width:18pt') + td_(right.join(''), 'width:246pt') + '</tr>', W));
-  h.push('<p style="margin:16pt 0 0;font-size:7.5pt;color:#999999;text-align:center">Sent automatically by the Grace usher attendance page.</p>');
-  h.push('</body></html>');
-  return h.join('\n');
+  out.push('<tr><td style="' + FONT + 'padding:16px 8px 0;text-align:center;font-size:11px;color:#999999">Sent automatically by the Grace usher attendance page.</td></tr>');
+  out.push('</table></td></tr></table></body></html>');
+  return out.join('\n');
 }
 
-// ---- Email body ---------------------------------------------------------------
+// ---- Plain-text email -----------------------------------------------------------
+//
+// For the few email apps that don't show HTML.
 
 function emailText_(d, updated) {
   const lines = [(updated ? 'Updated attendance for ' : 'Attendance for ') + serviceName_(d) + ', ' +
-    fmtDate_(d.date, d.tz, 'EEEE, MMMM d') + ': ' + d.total];
-  d.sections.forEach(function (s) { lines.push(s.title + ': ' + s.subtotal); });
+    fmtDate_(d.date, d.tz, 'EEEE, MMMM d') + ': ' + d.total, ''];
+  d.sections.forEach(function (s) {
+    lines.push(s.title + ': ' + s.subtotal);
+    s.areas.forEach(function (a) { lines.push('  ' + a.name + ': ' + (a.n === null ? '—' : a.n)); });
+  });
+  if (d.bulletins !== null) lines.push('', 'Bulletins left over: ' + d.bulletins);
   if (d.submittedBy) lines.push('Counted by ' + d.submittedBy);
-  lines.push('', 'The full report is attached as a PDF.');
+  if (d.notes) lines.push('', 'Notes: ' + d.notes);
   return lines.join('\n');
-}
-
-function emailHtml_(d, updated) {
-  const rows = d.sections.map(function (s) {
-    return '<tr><td style="padding:2px 16px 2px 0">' + esc_(s.title) + '</td><td style="text-align:right"><b>' + s.subtotal + '</b></td></tr>';
-  }).join('');
-  return '<div style="font-family:Arial,sans-serif;font-size:14px;color:#1A1A1A">' +
-    '<p style="margin:0 0 4px;color:' + C_MUTED + '">' + (updated ? 'Updated attendance' : 'Attendance') + ' &middot; ' +
-    esc_(serviceName_(d)) + ' &middot; ' + esc_(fmtDate_(d.date, d.tz, 'EEEE, MMMM d')) + '</p>' +
-    '<p style="margin:0 0 12px;font-size:32px;font-weight:bold;color:' + C_DEEP + '">' + d.total + '</p>' +
-    '<table style="border-collapse:collapse;margin-bottom:12px">' + rows + '</table>' +
-    (d.submittedBy ? '<p style="margin:0 0 12px;color:' + C_MUTED + '">Counted by ' + esc_(d.submittedBy) + '</p>' : '') +
-    '<p style="margin:0">The full report is attached as a PDF.</p></div>';
 }

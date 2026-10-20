@@ -1,6 +1,6 @@
 # Usher Attendance: Setup
 
-This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a PDF report to the staff.
+This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff.
 
 It has two parts:
 
@@ -20,14 +20,13 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
 2. Click "Untitled project" at the top and rename it **Usher Attendance**.
 3. You'll see a file called `Code.gs` with a few lines in it. Delete them, then paste in the entire contents of this folder's `Code.gs`.
 4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`.
-5. Click the **+** next to "Services", choose **Drive API**, and click **Add**. The report uses it to turn each report into a PDF.
-6. Click the save icon (💾).
+5. Click the save icon (💾).
 
 ## 3. Run setup once
 
 1. Click **Code.gs** in the Files list. The Run button and the function dropdown appear only while a `.gs` file is open. In the dropdown next to **Debug** (it probably shows `doGet`), pick **setup**, then click **Run**.
 2. Google will ask for permission. Click **Review permissions** and choose your account.
-3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**. The list of permissions includes Sheets, Drive, Docs and sending email: the script needs Drive and Docs to build each report as a PDF, and email to send it.
+3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**. The list of permissions includes Sheets and sending email: the script needs email to send the report.
 4. Switch back to the Sheet. You should see three tabs:
    - **Attendance**, with a dark green header row
    - **Summary**
@@ -75,7 +74,7 @@ Change it if it gets passed around more than you'd like, or when an usher leaves
 
 ## Emailed reports
 
-About a minute after each submission, the script emails a two-page PDF report to everyone on the **Report Emails** tab. The report has the totals, a breakdown by area, the auditorium by section, the full count, the last few services of the same kind, and the door ushers and notes. The email itself shows the total and the section subtotals, so staff can see the numbers without opening the attachment.
+About a minute after each submission, the script emails the report to everyone on the **Report Emails** tab. The report is the email itself, not an attachment, laid out like the ushers' page: the dark green header with the logo, then cards. It has the total and each section in boxes at the top, where everyone was, the auditorium as a floor plan, the other areas as bars, the full count, the last few services of the same kind, and the bulletins, door ushers and notes. On a computer some cards show two columns side by side; on a phone they stack. Email apps that can't show the layout get a plain-text version with the same numbers.
 
 - The **Report Emailed** column at the right end of the Attendance tab shows what happened to each row: *Pending*, *Sent* with the time and number of recipients, *Not sent* if the list is empty, or *Failed* with the reason.
 - If an usher replaces a service that was already logged, staff get a new report with "Updated" in the subject.
@@ -86,7 +85,7 @@ The Sheet has an **Attendance** menu (it appears a few seconds after the Sheet o
 - **Email report for selected row** sends that row's report to everyone on the list again. Use it after a *Failed* row, or to resend an old service.
 - **Send me a test report for selected row** sends it only to you, so you can check how it looks without emailing the staff.
 
-Each report is built in a temporary Google Doc that's moved to the Drive trash right after the PDF is made, so you may see "Attendance report (temporary)" files in the trash. Google empties the trash on its own after 30 days.
+Reports used to be sent as a PDF, made by way of a temporary Google Doc. They aren't anymore, so the script no longer needs the Drive API service. If it's listed under **Services** in Apps Script, you can leave it or remove it.
 
 ## The Sheet
 

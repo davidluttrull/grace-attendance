@@ -6,8 +6,8 @@
  * numbers to doPost, which logs them as one row in this spreadsheet.
  * See SETUP.md for how to deploy it.
  *
- * Report.gs emails a PDF report of each submission to the addresses on the
- * Report Emails tab.
+ * Report.gs emails a report of each submission, as the body of the email, to
+ * the addresses on the Report Emails tab.
  *
  * To add, rename or reorder an area, edit SECTIONS below and deploy a new
  * version. New areas get a new column at the right end of the sheet; old
