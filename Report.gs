@@ -42,6 +42,9 @@ function onOpen() {
     .addItem('Email report for selected row', 'emailSelectedReport')
     .addItem('Send me a test report for selected row', 'emailSelectedReportToMe')
     .addSeparator()
+    .addItem('Email weekly report', 'emailWeeklyReportMenu')
+    .addItem('Send me a test weekly report', 'emailWeeklyReportToMe')
+    .addSeparator()
     .addItem('Import history from the old attendance sheet', 'importHistory')
     .addToUi();
 }
@@ -374,6 +377,32 @@ function eFloorPlan_(section) {
       'margin-top:6px;border-collapse:separate;table-layout:fixed');
 }
 
+/**
+ * A whole email: the dark green header bar with the logo, kicker (small
+ * capitals), title and subtitle, then cards (eCard_ rows), then footer.
+ * preview is the line email apps show beside the subject.
+ */
+function ePage_(preview, kicker, title, subtitle, cards, footer) {
+  const T = THEME;
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"></head>' +
+    '<body style="margin:0;padding:0;background:' + T.soft + '">' +
+    '<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">' + esc_(preview) + '</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + T.soft + '" style="background:' + T.soft + '">' +
+    '<tr><td align="center" style="padding:16px 6px 24px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse">\n' +
+    // Header bar, like the top of the web page
+    '<tr><td bgcolor="' + T.deep + '" align="center" style="background:' + T.deep + ';border-radius:16px;padding:20px 18px 18px">' +
+    '<img src="' + LOGO_URL + '" width="149" height="52" alt="Grace Baptist Church" style="display:block;margin:0 auto 10px;border:0;height:52px;width:149px">' +
+    '<p style="' + FONT + 'margin:0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#CFE3C0">' + esc_(kicker) + '</p>' +
+    '<p style="' + FONT + 'margin:2px 0 0;font-size:22px;font-weight:700;color:#FFFFFF">' + esc_(title) + '</p>' +
+    '<p style="' + FONT + 'margin:2px 0 0;font-size:14px;color:#CFE3C0">' + esc_(subtitle) + '</p>' +
+    '</td></tr>\n' + cards + '\n' +
+    '<tr><td style="' + FONT + 'padding:16px 8px 0;text-align:center;font-size:11px;color:#999999">' + esc_(footer) + '</td></tr>' +
+    '</table></td></tr></table></body></html>';
+}
+
 /** The report, as the email's HTML body. */
 function reportHtml_(d, updated) {
   const T = THEME;
@@ -392,23 +421,6 @@ function reportHtml_(d, updated) {
   const out = [];
   const preview = d.total + ' at ' + svc + ' · ' + d.sections.map(function (s) { return s.title + ' ' + s.subtotal; }).join(' · ');
 
-  out.push('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
-    '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">' +
-    '<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"></head>' +
-    '<body style="margin:0;padding:0;background:' + T.soft + '">' +
-    '<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">' + esc_(preview) + '</div>' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="' + T.soft + '" style="background:' + T.soft + '">' +
-    '<tr><td align="center" style="padding:16px 6px 24px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse">');
-
-  // Header bar, like the top of the web page
-  out.push('<tr><td bgcolor="' + T.deep + '" align="center" style="background:' + T.deep + ';border-radius:16px;padding:20px 18px 18px">' +
-    '<img src="' + LOGO_URL + '" width="149" height="52" alt="Grace Baptist Church" style="display:block;margin:0 auto 10px;border:0;height:52px;width:149px">' +
-    '<p style="' + FONT + 'margin:0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#CFE3C0">' +
-    (updated ? 'Updated attendance' : 'Attendance') + '</p>' +
-    '<p style="' + FONT + 'margin:2px 0 0;font-size:22px;font-weight:700;color:#FFFFFF">' + esc_(svc) + '</p>' +
-    '<p style="' + FONT + 'margin:2px 0 0;font-size:14px;color:#CFE3C0">' + esc_(fmtDate_(d.date, d.tz, 'EEEE, MMMM d, yyyy')) + '</p>' +
-    '</td></tr>');
 
   // Quick boxes: the total, then one per section, two across
   const boxes = [eBox_('Total attendance', String(d.total), esc_(changeNote) +
@@ -534,9 +546,8 @@ function reportHtml_(d, updated) {
     (d.notes ? eSubhead_('Notes', 14) + '<p style="' + FONT + 'margin:0;font-size:14px;line-height:1.45;color:' + T.ink + '">' + esc_(d.notes) + '</p>' : '');
   out.push(eCard_(eHeading_('Service details') + eRow_(eSlot_(left, 'margin-bottom:12px') + eSlot_(eSubhead_('Door ushers', 4) + doors, 'margin-bottom:12px'))));
 
-  out.push('<tr><td style="' + FONT + 'padding:16px 8px 0;text-align:center;font-size:11px;color:#999999">Sent automatically by the Grace usher attendance page.</td></tr>');
-  out.push('</table></td></tr></table></body></html>');
-  return out.join('\n');
+  return ePage_(preview, updated ? 'Updated attendance' : 'Attendance', svc, fmtDate_(d.date, d.tz, 'EEEE, MMMM d, yyyy'),
+    out.join('\n'), 'Sent automatically by the Grace usher attendance page.');
 }
 
 // ---- Plain-text email -----------------------------------------------------------

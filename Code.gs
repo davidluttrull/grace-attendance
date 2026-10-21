@@ -7,7 +7,8 @@
  * See SETUP.md for how to deploy it.
  *
  * Report.gs emails a report of each submission, as the body of the email, to
- * the addresses on the Report Emails tab.
+ * the addresses on the Report Emails tab. Office.gs is the back end for the
+ * office page (office/index.html), and Weekly.gs emails its weekly report.
  *
  * To add, rename or reorder an area, edit SECTIONS below and deploy a new
  * version. New areas get a new column at the right end of the sheet; old
@@ -48,6 +49,7 @@ const DOORS = [
 // How the Date and Submitted At columns show in the sheet.
 const DATE_FORMAT = 'ddd m/d/yyyy';
 const SUBMITTED_FORMAT = 'm/d/yyyy h:mm am/pm';
+const ATTENDANCE_FORMATS = { 'Date': DATE_FORMAT, 'Submitted At': SUBMITTED_FORMAT };
 
 const MAX_COUNT = 5000;
 const MAX_BAD_CODES = 20; // wrong usher codes allowed per 10 minutes, across all phones
@@ -64,7 +66,8 @@ function doGet() {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
-    if (!codeIsRight_(body.code)) return json_({ status: 'badcode' });
+    if (body.action) return json_(officeRequest_(body));   // the office page (Office.gs)
+    if (!codeIsRight_(body.code, 'USHER_CODE')) return json_({ status: 'badcode' });
     return json_(submitAttendance(body.form, body.replace));
   } catch (err) {
     return json_({ status: 'error', message: err.message });
@@ -77,38 +80,44 @@ function json_(value) {
 }
 
 /**
- * Run this once from the editor to create the tabs and grant permissions.
- * It also creates the usher code (the first time) and shows it in the
- * Execution log. To change the code, edit USHER_CODE under Project Settings >
- * Script Properties.
+ * Run this once from the editor to create the tabs, grant permissions and
+ * schedule the weekly report. It also creates the usher code and the office
+ * code (the first time) and shows them in the Execution log. To change a
+ * code, edit USHER_CODE or OFFICE_CODE under Project Settings > Script
+ * Properties.
  */
 function setup() {
   const sheet = getSheet_();
   ensureEmailsTab_();
+  weeklyTab_();
+  ensureWeeklyTrigger_();
   SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
 
   const props = PropertiesService.getScriptProperties();
-  let code = props.getProperty('USHER_CODE');
-  if (!code) {
-    code = String(Math.floor(100000 + Math.random() * 900000));
-    props.setProperty('USHER_CODE', code);
-  }
-  Logger.log('Usher code: ' + code);
+  ['USHER_CODE', 'OFFICE_CODE'].forEach(function (name) {
+    let code = props.getProperty(name);
+    if (!code) {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+      props.setProperty(name, code);
+    }
+    Logger.log((name === 'USHER_CODE' ? 'Usher' : 'Office') + ' code: ' + code);
+  });
 }
 
 /**
- * Checks the usher code against the USHER_CODE Script Property, refusing
- * everything for 10 minutes after too many wrong ones. The code isn't in this
- * file, so the public copy on GitHub doesn't give it away.
+ * Checks a code against a Script Property (USHER_CODE or OFFICE_CODE),
+ * refusing everything for 10 minutes after too many wrong ones. The codes
+ * aren't in this file, so the public copy on GitHub doesn't give them away.
  */
-function codeIsRight_(code) {
-  const expected = PropertiesService.getScriptProperties().getProperty('USHER_CODE');
-  if (!expected) throw new Error('The usher code hasn\'t been set up yet. Run setup in Apps Script.');
+function codeIsRight_(code, property) {
+  const expected = PropertiesService.getScriptProperties().getProperty(property);
+  if (!expected) throw new Error('The code hasn\'t been set up yet. Run setup in Apps Script.');
   const cache = CacheService.getScriptCache();
-  const misses = Number(cache.get('badUsherCode') || 0);
+  const key = 'bad' + property;
+  const misses = Number(cache.get(key) || 0);
   if (misses >= MAX_BAD_CODES) throw new Error('Too many wrong codes. Wait 10 minutes and try again.');
   if (String(code || '').trim() === expected.trim()) return true;
-  cache.put('badUsherCode', String(misses + 1), 600);
+  cache.put(key, String(misses + 1), 600);
   return false;
 }
 
@@ -139,18 +148,7 @@ function submitAttendance(form, replace) {
     }
   });
   const record = { 'Date': date, 'Service': service, 'Other Service': otherName };
-  let total = 0;
-  SECTIONS.forEach(function (section) {
-    let subtotal = 0;
-    section.areas.forEach(function (area) {
-      const n = count_(counts[area], area);
-      record[area] = n;
-      subtotal += n || 0;
-    });
-    record[section.title + ' Subtotal'] = subtotal;
-    total += subtotal;
-  });
-  record['Total Attendance'] = total;
+  const total = fillCounts_(record, counts);
   record['Bulletins Left'] = count_(form.bulletins, 'Bulletins Left');
   const doors = form.doors || {};
   allDoors_().forEach(function (n) {
@@ -160,6 +158,7 @@ function submitAttendance(form, replace) {
   record['Submitted At'] = new Date();
   record['Notes'] = clean_(form.notes, 500);
   record[REPORT_STATUS] = replace ? 'Pending (updated)' : 'Pending';
+  record[OFFICE_EDIT] = '';
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -182,20 +181,7 @@ function submitAttendance(form, replace) {
       };
     }
 
-    const row = new Array(width).fill('');
-    Object.keys(record).forEach(function (key) {
-      row[cols[key] - 1] = record[key];
-    });
-    if (existing) {
-      sheet.getRange(existing, 1, 1, width).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
-    // Writing a Date replaces the column's format with Sheets' default
-    // "10/14/2026 12:00:00", so put the column's format back on this row.
-    const saved = existing || sheet.getLastRow();
-    sheet.getRange(saved, cols['Date']).setNumberFormat(DATE_FORMAT);
-    sheet.getRange(saved, cols['Submitted At']).setNumberFormat(SUBMITTED_FORMAT);
+    writeRow_(sheet, cols, existing, record, ATTENDANCE_FORMATS);
     try {
       queueReport_();
     } catch (err) {
@@ -206,6 +192,53 @@ function submitAttendance(form, replace) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Puts each area's count from counts ({area: number or ""}) into record, with
+ * the section subtotals and Total Attendance. Returns the total.
+ */
+function fillCounts_(record, counts) {
+  let total = 0;
+  SECTIONS.forEach(function (section) {
+    let subtotal = 0;
+    section.areas.forEach(function (area) {
+      const n = count_(counts[area], area);
+      record[area] = n;
+      subtotal += n || 0;
+    });
+    record[section.title + ' Subtotal'] = subtotal;
+    total += subtotal;
+  });
+  record['Total Attendance'] = total;
+  return total;
+}
+
+/**
+ * Writes record ({header: value}) into row, or as a new row at the bottom
+ * when row is 0, and returns the row. An existing row keeps every column not
+ * in record. Writing a Date replaces its column's format with Sheets' default
+ * ("10/14/2026 12:00:00"), so formats ({header: number format}) are put back.
+ */
+function writeRow_(sheet, cols, row, record, formats) {
+  const keys = Object.keys(record);
+  if (row) {
+    const at = keys.map(function (k) { return cols[k]; });
+    const first = Math.min.apply(null, at);
+    const range = sheet.getRange(row, first, 1, Math.max.apply(null, at) - first + 1);
+    const values = range.getValues()[0];
+    keys.forEach(function (k) { values[cols[k] - first] = record[k]; });
+    range.setValues([values]);
+  } else {
+    const values = new Array(sheet.getLastColumn()).fill('');
+    keys.forEach(function (k) { values[cols[k] - 1] = record[k]; });
+    sheet.appendRow(values);
+    row = sheet.getLastRow();
+  }
+  Object.keys(formats).forEach(function (h) {
+    if (cols[h]) sheet.getRange(row, cols[h]).setNumberFormat(formats[h]);
+  });
+  return row;
 }
 
 function pageConfig_() {
@@ -220,7 +253,7 @@ function headers_() {
   });
   h.push('Bulletins Left');
   allDoors_().forEach(function (n) { h.push(doorHeader_(n)); });
-  h.push('Submitted By', 'Submitted At', 'Notes', REPORT_STATUS);
+  h.push('Submitted By', 'Submitted At', 'Notes', REPORT_STATUS, OFFICE_EDIT);
   return h;
 }
 

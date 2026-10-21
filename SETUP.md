@@ -1,13 +1,14 @@
 # Usher Attendance: Setup
 
-This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff.
+This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff. A second page, for the church office, takes the week's other numbers (Sunday School, the ministries, the children's classes) and emails a weekly report every Saturday morning.
 
-It has two parts:
+It has three parts:
 
-- **The Sheet and its script** (`Code.gs`, `Report.gs` and `History.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the page which rooms to show, and emails the report.
-- **The page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. The church site forwards <https://gracetoanderson.com/ushercount> there, and that's the address ushers use.
+- **The Sheet and its script** (`Code.gs`, `Report.gs`, `History.gs`, `Office.gs` and `Weekly.gs`). The script lives inside the Google Sheet. It saves each submission as a row, tells the pages what to show, and emails the reports.
+- **The ushers' page** (`index.html`, plus the logo, icons, and `manifest.webmanifest`). It's hosted on GitHub Pages at <https://davidluttrull.github.io/grace-attendance/>. The church site forwards <https://gracetoanderson.com/ushercount> there, and that's the address ushers use.
+- **The office page** (`office/index.html`), at <https://davidluttrull.github.io/grace-attendance/office/>. See "The office page" below.
 
-The page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to. Instead, each submission must carry the **usher code**, a 6-digit number the script creates for you. Without it, a stranger who found the page couldn't add, change or look up attendance.
+The ushers' page sends its numbers to the script without any Google sign-in. Ushers don't need a Google account, and it works whatever account their phone happens to be signed in to. Instead, each submission must carry the **usher code**, a 6-digit number the script creates for you. Without it, a stranger who found the page couldn't add, change or look up attendance.
 
 ## 1. Create the Sheet
 
@@ -19,7 +20,7 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
 1. In the Sheet, open **Extensions → Apps Script**.
 2. Click "Untitled project" at the top and rename it **Usher Attendance**.
 3. You'll see a file called `Code.gs` with a few lines in it. Delete them, then paste in the entire contents of this folder's `Code.gs`.
-4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`. Do the same for `History.gs`, naming it `History`.
+4. Click the **+** next to "Files", choose **Script**, and name it `Report` (Apps Script adds the `.gs` itself). Delete what's inside and paste in the contents of `Report.gs`. Do the same for `History.gs`, `Office.gs` and `Weekly.gs`, naming them `History`, `Office` and `Weekly`.
 5. Click the save icon (💾).
 
 ## 3. Run setup once
@@ -27,12 +28,15 @@ The page sends its numbers to the script without any Google sign-in. Ushers don'
 1. Click **Code.gs** in the Files list. The Run button and the function dropdown appear only while a `.gs` file is open. In the dropdown next to **Debug** (it probably shows `doGet`), pick **setup**, then click **Run**.
 2. Google will ask for permission. Click **Review permissions** and choose your account.
 3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**. The list of permissions includes Sheets and sending email: the script needs email to send the report.
-4. Switch back to the Sheet. You should see three tabs:
+4. Switch back to the Sheet. You should see four tabs:
    - **Attendance**, with a dark green header row
    - **Summary**
+   - **Weekly**, for the office page's numbers
    - **Report Emails**
 5. On the **Report Emails** tab, type the staff email addresses in column A, one per row, starting in A2. A Google Group or routing address works too.
-6. Back in Apps Script, click **Execution log** at the top. The last line reads **Usher code: 123456** with your own number. Give that code to the ushers. Running setup again shows the same code.
+6. Back in Apps Script, click **Execution log** at the top. The last two lines read **Usher code: 123456** and **Office code: 654321**, with your own numbers. Give the usher code to the ushers and the office code to the office. Running setup again shows the same codes.
+
+Setup also schedules the weekly report for Saturday mornings. Running it again doesn't schedule a second one.
 
 ## 4. Deploy the script
 
@@ -48,7 +52,7 @@ To check the deployment, open that URL in a browser. You should see a short bloc
 
 ## 5. Connect the page to the script
 
-The page has to know the script's address. Near the bottom of `index.html`, find the line that starts with `const API_URL =`, and put the `/exec` URL from step 4 between the quotes.
+The page has to know the script's address. Near the bottom of `index.html`, find the line that starts with `const API_URL =`, and put the `/exec` URL from step 4 between the quotes. `office/index.html` has the same line; give it the same URL.
 
 This only needs to be done once. Deploying a new version of the script later keeps the same URL (see "Changing rooms or areas" below).
 
@@ -68,9 +72,24 @@ Send the ushers the page's address, <https://gracetoanderson.com/ushercount>, an
 - If someone submits a service that's already logged (same date and same service), the page shows who logged it and asks whether to replace it. Nothing gets counted twice.
 - A wrong usher code is rejected and cleared from the phone. After 20 wrong codes within 10 minutes, from any phones, the script stops accepting submissions for 10 minutes, so nobody can guess the code by trying numbers.
 
-## Changing the usher code
+## The office page
 
-Change it if it gets passed around more than you'd like, or when an usher leaves the team. In Apps Script, click the gear icon (**Project Settings**) on the left, scroll to **Script Properties**, click **Edit script properties**, change the value of **USHER_CODE**, and click **Save script properties**. The new code works right away; you don't need to redeploy. Each phone asks for the new code the next time someone submits.
+The office fills in the week's other numbers at <https://davidluttrull.github.io/grace-attendance/office/>. It's meant for a computer but works on a phone too. If you'd like a shorter address, have the church site forward something like `gracetoanderson.com/officecount` there, the way `ushercount` forwards to the ushers' page.
+
+- The first time, it asks for a name and the **office code**, and that computer remembers both. The usher code doesn't open it: the office page can read and change everything the ushers logged.
+- It opens on the current week, Sunday through Saturday. The arrows move a week at a time, and **Go to** jumps to the week containing any date. The address ends in the week's Sunday (`…/office/#2026-10-18`), so a bookmark goes back to that week.
+- **Usher Counts** lists the week's services: Sunday AM, Sunday PM, Wednesday, and any others the ushers logged. Open one to see every area. Change a number to correct it, or fill in a service the ushers missed. Saving updates or adds that service's row on the Attendance tab and notes who changed it in the **Office Edit** column. It doesn't email the per-service report.
+- Below that are the numbers the ushers don't count, under the same names as the History tabs' columns: Sunday School (adults, teens, children, and a total it adds up), the Sunday School classes, the ministries (Bus, Keenagers/HGM, K4T/AWANA, Kidstown), and the children's classes for Sunday morning, Sunday evening and Wednesday. The Sunday School "Teens" box fills both SS Teen and SS Teens, which the old sheet kept twice.
+- The nursery, K4-K5 and 1st-3rd boxes for each service start at the ushers' count for those rooms (the three nurseries added together; Pre-Primary; Junior Church). They're shaded and marked **ushers** until someone types over them, and they follow the ushers' numbers if those change before the office saves.
+- **Save** puts the week on the **Weekly** tab, one row per week. Save as often as you like through the week: each save replaces that week's row. Saving doesn't email anyone.
+- For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied, because the boxes only take numbers. The History tab keeps them.
+- If you move to another week or close the page with unsaved changes, it asks first.
+
+## Changing the usher code or the office code
+
+Change the usher code if it gets passed around more than you'd like, or when an usher leaves the team. In Apps Script, click the gear icon (**Project Settings**) on the left, scroll to **Script Properties**, click **Edit script properties**, change the value of **USHER_CODE**, and click **Save script properties**. The new code works right away; you don't need to redeploy. Each phone asks for the new code the next time someone submits.
+
+The office code is **OFFICE_CODE** in the same list, and it changes the same way. The office page asks for the new code the next time it opens.
 
 ## Emailed reports
 
@@ -84,6 +103,14 @@ The Sheet has an **Attendance** menu (it appears a few seconds after the Sheet o
 
 - **Email report for selected row** sends that row's report to everyone on the list again. Use it after a *Failed* row, or to resend an old service.
 - **Send me a test report for selected row** sends it only to you, so you can check how it looks without emailing the staff.
+
+### The weekly report
+
+Every Saturday at about 7 AM, the script emails the week just past to the same **Report Emails** list. It covers each service's count by section, then Sunday School, the classes, the ministries and the children's classes, each beside the same week last year. Office and usher notes come last. A children's class the office left blank shows the ushers' count for those rooms, with an asterisk.
+
+- The **Weekly Report** column on the Weekly tab shows when each week's report went out, or why it didn't.
+- The menu has **Email weekly report** and **Send me a test weekly report**. Click a row on the Weekly tab first to send that week; otherwise they send the latest week.
+- Saturday at 7 AM is set in `Weekly.gs` (`WEEKLY_HOUR`), in the script's time zone. To change the day or hour, open **Triggers** (the alarm clock on the left of Apps Script), delete the `sendWeeklyReport` trigger, edit `Weekly.gs`, and run setup again.
 
 Reports used to be sent as a PDF, made by way of a temporary Google Doc. They aren't anymore, so the script no longer needs the Drive API service. If it's listed under **Services** in Apps Script, you can leave it or remove it.
 
@@ -101,22 +128,23 @@ The emailed report reads the History tabs for **Recent services** and **Compared
 
 ## The Sheet
 
-- **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, and notes.
+- **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, notes, whether the report was emailed, and any change made on the office page.
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
-- **Report Emails:** the addresses that get the report.
+- **Weekly:** the office page's numbers, one row per week (the Sunday's date), with the same column names as the History tabs, who saved it last, and when the weekly report went out.
+- **Report Emails:** the addresses that get both reports.
 - **History 2026** back to **History 2006:** the old sheet's numbers, one tab per year, newest first (see above).
 
-You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** tab name and the existing header names unchanged.
+You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** and **Weekly** tab names and the existing header names unchanged.
 
 ## Updating the script
 
-Whenever `Code.gs`, `Report.gs` or `History.gs` changes:
+Whenever `Code.gs`, `Report.gs`, `History.gs`, `Office.gs` or `Weekly.gs` changes:
 
 1. Paste the new version into Apps Script and save.
-2. Open **Code.gs** and run **setup** once (step 3 above). The dropdown lists only the open file's functions, so setup won't appear while Report.gs or History.gs is open. If the new version needs a new permission, Google asks for it here. The ushers' page can't ask, so skipping this step makes submissions fail until someone runs setup.
+2. Open **Code.gs** and run **setup** once (step 3 above). The dropdown lists only the open file's functions, so setup won't appear while another file is open. If the new version needs a new permission, Google asks for it here. The pages can't ask, so skipping this step makes submissions fail until someone runs setup.
 3. Click **Deploy → Manage deployments**, then click the pencil icon. Under **Version**, choose **New version**, then click **Deploy**.
 
-Don't use **New deployment**, because it creates a new URL and the page would stop reaching the script.
+Don't use **New deployment**, because it creates a new URL and the pages would stop reaching the script.
 
 ## Changing rooms or areas
 

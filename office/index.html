@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grace Office Attendance</title>
+<meta name="theme-color" content="#233617">
+<meta name="robots" content="noindex">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #7BAE58;
+    --brand-deep: #233617;
+    --brand-mid: #4E7A35;
+    --bg: #F3F8EF;
+    --card: #FFFFFF;
+    --ink: #1E2A16;
+    --muted: #5B6A50;
+    --line: #DCE7D3;
+    --step-bg: #EFF6EA;
+    --step-line: #C6DBB6;
+    --step-ink: #233617;
+    --btn-bg: #233617;
+    --btn-ink: #FFFFFF;
+    --filled: #F6FAF2;
+    --prefill: #FFF7E0;
+    --prefill-line: #E9D59A;
+    --prefill-ink: #7A5A00;
+    --danger: #B3261E;
+    --ok: #3D7A28;
+    --shadow: 0 1px 2px rgba(35, 54, 23, .06), 0 2px 8px rgba(35, 54, 23, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10160C;
+      --card: #1A2414;
+      --ink: #E8F0E1;
+      --muted: #A3B396;
+      --line: #2D3B24;
+      --step-bg: #243319;
+      --step-line: #3A4D2E;
+      --step-ink: #E8F0E1;
+      --btn-bg: #7BAE58;
+      --btn-ink: #10160C;
+      --filled: #1F2C18;
+      --prefill: #2E2810;
+      --prefill-line: #5C4E1E;
+      --prefill-ink: #E9D59A;
+      --danger: #F2B8B5;
+      --ok: #A8D88E;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.4 'Poppins', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .top {
+    background: var(--brand-deep);
+    color: #fff;
+    padding: 18px 16px 20px;
+    text-align: center;
+  }
+  .top img { height: 52px; display: block; margin: 0 auto 6px; }
+  .top p { margin: 0; font-size: 14px; color: #CFE3C0; letter-spacing: .02em; }
+
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 12px 16px 120px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--brand-mid);
+  }
+  @media (prefers-color-scheme: dark) { h2 { color: var(--brand); } }
+  h3 {
+    display: flex;
+    justify-content: space-between;
+    margin: 14px 0 2px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .sub {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .hint { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+
+  .field { display: block; margin-top: 10px; }
+  .field > span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 16px;
+  }
+  .field textarea { min-height: 72px; resize: vertical; }
+  input:focus, textarea:focus, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+  input[type="date"] { -webkit-appearance: none; appearance: none; }
+
+  /* Week picker */
+  .week { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .week strong { flex: 1; text-align: center; font-size: 18px; font-weight: 600; }
+  .nav {
+    width: 46px;
+    height: 46px;
+    flex: none;
+    border-radius: 12px;
+    border: 1px solid var(--step-line);
+    background: var(--step-bg);
+    color: var(--step-ink);
+    font-size: 22px;
+    line-height: 1;
+  }
+  .week-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 16px; margin-top: 8px; font-size: 14px; }
+  .week-tools label { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .week-tools input { min-height: 38px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .status { margin: 10px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+
+  /* Number boxes: label on the left, box on the right, two across on wide screens */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    column-gap: 24px;
+  }
+  .num {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid var(--line);
+  }
+  .num label { flex: 1; min-width: 0; font-size: 15px; }
+  .num label small { display: block; font-size: 12px; color: var(--muted); }
+  .num input {
+    width: 76px;
+    height: 42px;
+    flex: none;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    font-variant-numeric: tabular-nums;
+  }
+  .num input:not(:placeholder-shown) { background: var(--filled); border-color: var(--step-line); }
+  .num input.prefilled { background: var(--prefill); border-color: var(--prefill-line); }
+  .tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: 1px;
+    background: var(--prefill);
+    color: var(--prefill-ink);
+    border: 1px solid var(--prefill-line);
+  }
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0 2px;
+    border-top: 2px solid var(--brand);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Usher services */
+  details.svc { border-top: 1px solid var(--line); }
+  details.svc:first-of-type { border-top: 0; }
+  details.svc > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    cursor: pointer;
+  }
+  details.svc > summary::-webkit-details-marker { display: none; }
+  details.svc > summary::before {
+    content: '';
+    width: 8px; height: 8px;
+    flex: none;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(-45deg);
+    transition: transform .15s;
+  }
+  details[open].svc > summary::before { transform: rotate(45deg); }
+  .svc-name { flex: 1; min-width: 0; }
+  .svc-name b { font-weight: 600; }
+  .svc-name small { display: block; font-size: 13px; color: var(--muted); }
+  .svc-name small.missing { color: var(--prefill-ink); }
+  .svc-total { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .svc-body { padding: 0 0 12px 20px; }
+  .svc-body .hint { margin-top: 10px; }
+
+  .link {
+    display: block;
+    margin: 4px auto 0;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    text-decoration: underline;
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--brand-deep);
+    color: #fff;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .15);
+  }
+  .bar-inner {
+    max-width: 728px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .bar-text { flex: 1; min-width: 0; line-height: 1.2; }
+  .bar-text span { display: block; font-size: 13px; color: #CFE3C0; text-transform: uppercase; letter-spacing: .06em; }
+  .bar-text strong { font-size: 17px; font-weight: 600; }
+  .primary {
+    min-height: 52px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--brand);
+    color: #10160C;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .primary:disabled { opacity: .6; }
+  .bar .primary:focus-visible { outline-color: #fff; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 22, 12, .55);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+  }
+  .sheet {
+    width: 100%;
+    max-width: 440px;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 22px 20px 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  @media (min-width: 600px) { .overlay { align-items: center; } }
+  .sheet h3 { display: block; margin: 0 0 6px; font-size: 19px; }
+  .sheet p { margin: 0 0 18px; color: var(--muted); }
+  .sheet-buttons { display: flex; gap: 10px; }
+  .sheet-buttons button { flex: 1; min-height: 50px; border-radius: 12px; font-weight: 600; }
+  .secondary { background: var(--step-bg); border: 1px solid var(--step-line); color: var(--step-ink); }
+  .sheet .primary, .signin .primary { background: var(--btn-bg); color: var(--btn-ink); padding: 0 12px; }
+  .signin { max-width: 440px; margin: 24px auto; }
+  .signin .primary { width: 100%; margin-top: 16px; }
+
+  .loading { text-align: center; padding: 48px 16px; color: var(--muted); }
+  .loading button { min-height: 46px; padding: 0 22px; border-radius: 12px; font-weight: 600; }
+
+  .toast {
+    position: fixed;
+    left: 16px; right: 16px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    max-width: 728px;
+    margin: 0 auto;
+    background: var(--danger);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    z-index: 5;
+  }
+  .toast.ok { background: var(--ok); }
+  @media (prefers-color-scheme: dark) { .toast { color: #10160C; } }
+</style>
+</head>
+<body>
+  <header class="top">
+    <img src="../logo.png" alt="Grace Baptist Church">
+    <p>Office Attendance</p>
+  </header>
+
+  <form class="card signin" id="signin" hidden>
+    <h2>Sign in</h2>
+    <label class="field">
+      <span>Your name</span>
+      <input id="name" maxlength="60" autocomplete="name" required>
+    </label>
+    <label class="field">
+      <span>Office code</span>
+      <input id="code" type="password" inputmode="numeric" autocomplete="off" maxlength="20" required>
+    </label>
+    <p class="hint">This computer remembers both. The office code isn't the usher code.</p>
+    <button type="submit" class="primary">Open</button>
+  </form>
+
+  <div class="loading" id="loading" hidden>
+    <p id="loadingText">Loading&hellip;</p>
+    <button type="button" class="secondary" id="retry" hidden>Try again</button>
+  </div>
+
+  <main id="page" hidden>
+    <section class="card">
+      <h2>Week</h2>
+      <div class="week">
+        <button type="button" class="nav" id="prev" aria-label="Previous week">&lsaquo;</button>
+        <strong id="weekLabel"></strong>
+        <button type="button" class="nav" id="next" aria-label="Next week">&rsaquo;</button>
+      </div>
+      <div class="week-tools">
+        <label>Go to <input type="date" id="jump" aria-label="Go to the week with this date"></label>
+        <button type="button" class="link" id="thisWeek" style="margin:0;padding:6px">This week</button>
+      </div>
+      <p class="status" id="weekStatus"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Usher Counts</h2></div>
+      <p class="hint">What the ushers logged this week. Open a service to fix a number, or to fill in one they missed. Saving here doesn't email anyone.</p>
+      <div id="services"></div>
+    </section>
+
+    <div id="groups"></div>
+
+    <section class="card">
+      <h2>Notes</h2>
+      <label class="field">
+        <span>Anything unusual this week (snow day, Easter, no Awana)</span>
+        <textarea id="notes" maxlength="500"></textarea>
+      </label>
+    </section>
+
+    <button type="button" class="link" id="signout">Not <span id="who"></span>? Change name or code</button>
+  </main>
+
+  <div class="bar" id="bar" hidden>
+    <div class="bar-inner">
+      <div class="bar-text"><span id="barWeek"></span><strong id="barStatus">No changes</strong></div>
+      <button type="button" class="primary" id="save" disabled>Save</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+
+  <div class="overlay" id="dialog" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <h3 id="dialogTitle"></h3>
+      <p id="dialogBody"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="secondary" id="dialogCancel">Cancel</button>
+        <button type="button" class="primary" id="dialogOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // The same Apps Script web app as the ushers' page (see SETUP.md).
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwXYSx0-AIJMaoGwY2KE2wFNAtdLvPahfujlZyv9ftizq7VlhoeuCwRuPXekbtbZfiNjw/exec';
+  const NAME_KEY = 'gbc-office-name';
+  const CODE_KEY = 'gbc-office-code';
+  const DAY = 86400000;
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  let WEEK = null;      // the week as the script last sent it
+  let week = '';        // its Sunday, "2026-10-18"
+  let changed = false;  // anything typed since then
+  let uid = 0;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function store(fn) {
+    try { return fn(window.localStorage); } catch (e) { return null; }
+  }
+
+  // ---- Dates ----------------------------------------------------------------
+
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function parse(value) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d, 12);
+  }
+
+  /** The Sunday on or before a date. */
+  function sundayOf(d) {
+    return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay(), 12));
+  }
+
+  function shift(value, days) {
+    const d = parse(value);
+    return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() + days, 12));
+  }
+
+  /** "Sun 10/18", or with opts, whatever toLocaleDateString makes of them. */
+  function short(value, opts) {
+    const d = parse(value);
+    if (opts) return d.toLocaleDateString(undefined, opts);
+    return d.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function weekLabel(value) {
+    const a = parse(value);
+    const b = parse(shift(value, 6));
+    const month = (d) => d.toLocaleDateString(undefined, { month: 'short' });
+    return month(a) + ' ' + a.getDate() + ' – ' + (month(b) !== month(a) ? month(b) + ' ' : '') + b.getDate() + ', ' + b.getFullYear();
+  }
+
+  // ---- Build the page for a week -------------------------------------------
+
+  function numRow(label, attrs, small) {
+    const id = 'n' + (++uid);
+    const row = document.createElement('div');
+    row.className = 'num';
+    row.innerHTML = '<label for="' + id + '">' + esc(label) + (small ? '<small>' + esc(small) + '</small>' : '') + '</label>' +
+      '<input id="' + id + '" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="" autocomplete="off">';
+    Object.assign(row.querySelector('input').dataset, attrs);
+    return row;
+  }
+
+  function value(v) {
+    return typeof v === 'number' ? String(v) : '';
+  }
+
+  function serviceName(s) {
+    return s.service === 'Other' ? s.otherName : s.service;
+  }
+
+  function render() {
+    const w = WEEK;
+    $('#weekLabel').textContent = weekLabel(week);
+    $('#barWeek').textContent = 'Week of ' + short(week, { month: 'short', day: 'numeric' });
+    $('#jump').value = week;
+    $('#next').disabled = week >= sundayOf(new Date());
+    $('#weekStatus').textContent =
+      w.from === 'weekly' ? 'Last saved by ' + w.updatedBy + (w.updatedAt ? ', ' + w.updatedAt : '') + '.' :
+      w.from === 'history' ? 'These numbers came from the old attendance sheet. Saving copies them to the Weekly tab.' :
+      'Nothing saved for this week yet.';
+
+    // Usher services
+    const list = $('#services');
+    list.innerHTML = '';
+    w.services.forEach((s, si) => {
+      const d = document.createElement('details');
+      d.className = 'svc';
+      d.dataset.svc = si;
+      const meta = s.logged
+        ? 'Logged by ' + (s.by || 'an usher') + (s.at ? ', ' + s.at : '') + (s.edited ? ' · ' + s.edited : '')
+        : typeof s.old === 'number' ? 'Not logged by the ushers. The old attendance sheet has ' + s.old + '.' : 'Not logged by the ushers';
+      d.innerHTML = '<summary><span class="svc-name"><b>' + esc(serviceName(s)) + '</b> &middot; ' + esc(short(s.date)) +
+        '<small' + (s.logged ? '' : ' class="missing"') + '>' + esc(meta) + '</small></span>' +
+        '<span class="svc-total" data-svc-total="' + si + '">' + (s.logged ? s.total : '&ndash;') + '</span></summary>';
+      const body = document.createElement('div');
+      body.className = 'svc-body';
+      w.sections.forEach((sec, ki) => {
+        const h = document.createElement('h3');
+        h.innerHTML = esc(sec.title) + '<span class="sub" data-sec="' + si + '-' + ki + '"></span>';
+        body.appendChild(h);
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        sec.areas.forEach((a) => {
+          const row = numRow(a, { svc: si, area: a, sec: ki });
+          row.querySelector('input').value = value(s.counts[a]);
+          grid.appendChild(row);
+        });
+        body.appendChild(grid);
+      });
+      if (s.notes) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = 'Usher notes: ' + s.notes;
+        body.appendChild(p);
+      }
+      d.appendChild(body);
+      list.appendChild(d);
+    });
+
+    // Office numbers
+    const groups = $('#groups');
+    groups.innerHTML = '';
+    w.groups.forEach((g, gi) => {
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = '<div class="card-head"><h2>' + esc(g.title) + '</h2>' +
+        (g.service ? '<span class="sub">' + esc(g.service) + '</span>' : '') + '</div>' +
+        (g.fields.some((f) => f.from) ? '<p class="hint">Boxes marked <span class="tag">ushers</span> start at the ushers\' count for those rooms. Type over them if yours is different.</p>' : '');
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      g.fields.forEach((f) => {
+        const row = numRow(f.label, { key: f.key, group: gi });
+        const input = row.querySelector('input');
+        input.value = value(w.office[f.key]);
+        if (f.from && input.value === '') input.dataset.prefill = '1';
+        grid.appendChild(row);
+      });
+      card.appendChild(grid);
+      if (g.total) {
+        const t = document.createElement('div');
+        t.className = 'total-row';
+        t.innerHTML = '<span>Total</span><span data-group-total="' + gi + '">0</span>';
+        card.appendChild(t);
+      }
+      groups.appendChild(card);
+    });
+    $('#notes').value = w.notes || '';
+
+    setChanged(false);
+    recalc();
+  }
+
+  // ---- Totals and the ushers' numbers in the office boxes -----------------
+
+  function num(input) {
+    return input.value === '' ? 0 : Number(input.value);
+  }
+
+  function recalc() {
+    const w = WEEK;
+    w.services.forEach((s, si) => {
+      const inputs = $$('input[data-svc="' + si + '"]');
+      w.sections.forEach((_, ki) => {
+        const sub = inputs.filter((i) => i.dataset.sec === String(ki)).reduce((t, i) => t + num(i), 0);
+        $('[data-sec="' + si + '-' + ki + '"]').textContent = sub;
+      });
+      const any = inputs.some((i) => i.value !== '');
+      $('[data-svc-total="' + si + '"]').innerHTML = s.logged || any ? inputs.reduce((t, i) => t + num(i), 0) : '&ndash;';
+    });
+
+    // Office boxes still showing the ushers' count follow it as it changes.
+    w.groups.forEach((g, gi) => {
+      const si = w.services.findIndex((s) => s.service === g.service);
+      g.fields.forEach((f) => {
+        const input = $('input[data-key="' + CSS.escape(f.key) + '"]');
+        const label = input.closest('.num').querySelector('label');
+        const tag = label.querySelector('.tag');
+        if (tag) tag.remove();
+        input.classList.remove('prefilled');
+        if (!f.from || input.dataset.prefill !== '1') return;
+        const parts = si < 0 ? [] : f.from.map((a) => $('input[data-svc="' + si + '"][data-area="' + CSS.escape(a) + '"]'))
+          .filter((i) => i && i.value !== '');
+        input.value = parts.length ? parts.reduce((t, i) => t + num(i), 0) : '';
+        if (input.value !== '') {
+          input.classList.add('prefilled');
+          label.insertAdjacentHTML('beforeend', '<span class="tag">ushers</span>');
+        }
+      });
+      if (g.total) {
+        $('[data-group-total="' + gi + '"]').textContent =
+          g.fields.reduce((t, f) => t + num($('input[data-key="' + CSS.escape(f.key) + '"]')), 0);
+      }
+    });
+  }
+
+  function setChanged(on) {
+    changed = on;
+    $('#save').disabled = !on;
+    $('#barStatus').textContent = on ? 'Unsaved changes' : (WEEK && WEEK.from === 'weekly' ? 'Saved' : 'No changes');
+  }
+
+  // ---- Talking to the script ----------------------------------------------
+
+  // POST as plain text with no cookies, like the ushers' page, so there's no
+  // CORS preflight and no Google sign-in.
+  async function api(body) {
+    let res;
+    try {
+      const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ code: store((s) => s.getItem(CODE_KEY)) }, body)) });
+      res = await r.json();
+    } catch (e) {
+      throw new Error('Couldn’t reach the attendance sheet. Check your connection.');
+    }
+    if (res.status === 'error') throw new Error(res.message);
+    return res;
+  }
+
+  function badCode() {
+    store((s) => s.removeItem(CODE_KEY));
+    showSignin('That office code isn’t right.');
+  }
+
+  async function load(value) {
+    week = value;
+    history.replaceState(null, '', '#' + week);
+    $('#page').hidden = true;
+    $('#bar').hidden = true;
+    $('#loading').hidden = false;
+    $('#retry').hidden = true;
+    $('#loadingText').textContent = 'Loading the week of ' + short(week, { month: 'long', day: 'numeric' }) + '…';
+    let res;
+    try {
+      res = await api({ action: 'week', week: week });
+    } catch (err) {
+      $('#loadingText').textContent = err.message;
+      $('#retry').hidden = false;
+      return;
+    }
+    if (res.status === 'badcode') { badCode(); return; }
+    WEEK = res;
+    render();
+    $('#loading').hidden = true;
+    $('#page').hidden = false;
+    $('#bar').hidden = false;
+  }
+
+  function collect() {
+    const office = {};
+    $$('input[data-key]').forEach((i) => { office[i.dataset.key] = i.value; });
+    const services = WEEK.services.map((s, si) => {
+      const counts = {};
+      $$('input[data-svc="' + si + '"]').forEach((i) => { counts[i.dataset.area] = i.value; });
+      return { service: s.service, otherName: s.otherName, date: s.date, counts: counts };
+    }).filter((s, si) => $('details[data-svc="' + si + '"]').dataset.changed === '1');
+    return { week: week, by: store((s) => s.getItem(NAME_KEY)), office: office, notes: $('#notes').value.trim(), services: services };
+  }
+
+  async function save() {
+    const btn = $('#save');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    $('#toast').hidden = true;
+    let res;
+    try {
+      res = await api({ action: 'save', form: collect() });
+    } catch (err) {
+      toast(err.message + ' Your numbers are still here, so try again.');
+      btn.disabled = false;
+      return;
+    } finally {
+      btn.textContent = 'Save';
+    }
+    if (res.status === 'badcode') { badCode(); return; }
+    const open = $$('details.svc').map((d) => d.open);
+    WEEK = res;
+    render();
+    $$('details.svc').forEach((d, i) => { d.open = !!open[i]; });
+    toast('Saved the week of ' + short(week, { month: 'short', day: 'numeric' }) + '.', true);
+  }
+
+  // ---- Dialogs and messages -----------------------------------------------
+
+  let toastTimer;
+  function toast(msg, ok) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('ok', !!ok);
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, ok ? 3000 : 6000);
+  }
+
+  function dialog(opts) {
+    return new Promise((resolve) => {
+      $('#dialogTitle').textContent = opts.title;
+      $('#dialogBody').textContent = opts.body;
+      $('#dialogOk').textContent = opts.ok || 'OK';
+      $('#dialogCancel').textContent = opts.cancel || 'Cancel';
+      $('#dialog').hidden = false;
+      $('#dialogOk').focus();
+      const finish = (ok) => {
+        $('#dialog').hidden = true;
+        $('#dialogOk').onclick = $('#dialogCancel').onclick = null;
+        resolve(ok);
+      };
+      $('#dialogOk').onclick = () => finish(true);
+      $('#dialogCancel').onclick = () => finish(false);
+    });
+  }
+
+  /** Moves to another week, checking first if there are unsaved changes. */
+  async function go(value) {
+    if (value === week) return;
+    if (changed && !await dialog({
+      title: 'Leave without saving?',
+      body: 'Your changes to the week of ' + short(week, { month: 'short', day: 'numeric' }) + ' haven’t been saved.',
+      ok: 'Leave', cancel: 'Stay',
+    })) {
+      $('#jump').value = week;
+      return;
+    }
+    load(value);
+  }
+
+  // ---- Sign in ----------------------------------------------------------------
+
+  function showSignin(problem) {
+    $('#page').hidden = true;
+    $('#bar').hidden = true;
+    $('#loading').hidden = true;
+    $('#signin').hidden = false;
+    $('#name').value = store((s) => s.getItem(NAME_KEY)) || '';
+    $('#code').value = '';
+    if (problem) toast(problem);
+    ($('#name').value ? $('#code') : $('#name')).focus();
+  }
+
+  $('#signin').addEventListener('submit', (e) => {
+    e.preventDefault();
+    store((s) => s.setItem(NAME_KEY, $('#name').value.trim()));
+    store((s) => s.setItem(CODE_KEY, $('#code').value.trim()));
+    $('#signin').hidden = true;
+    $('#toast').hidden = true;
+    $('#who').textContent = $('#name').value.trim();
+    load(week);
+  });
+
+  $('#signout').addEventListener('click', async () => {
+    if (changed && !await dialog({ title: 'Leave without saving?', body: 'Your changes haven’t been saved.', ok: 'Leave', cancel: 'Stay' })) return;
+    store((s) => s.removeItem(CODE_KEY));
+    setChanged(false);
+    showSignin();
+  });
+
+  // ---- Events -------------------------------------------------------------
+
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.matches('.num input')) {
+      const clean = t.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 4);
+      if (clean !== t.value) t.value = clean;
+      if (t.dataset.key) t.dataset.prefill = '';
+      if (t.dataset.svc) t.closest('details').dataset.changed = '1';
+      recalc();
+    }
+    if (!t.closest('#signin') && t.id !== 'jump') setChanged(true);
+  });
+
+  document.addEventListener('focusin', (e) => {
+    if (e.target.matches('.num input')) setTimeout(() => e.target.select(), 0);
+  });
+
+  $('#save').addEventListener('click', save);
+  $('#prev').addEventListener('click', () => go(shift(week, -7)));
+  $('#next').addEventListener('click', () => go(shift(week, 7)));
+  $('#thisWeek').addEventListener('click', () => go(sundayOf(new Date())));
+  $('#jump').addEventListener('change', () => { if ($('#jump').value) go(sundayOf(parse($('#jump').value))); });
+  $('#retry').addEventListener('click', () => load(week));
+  window.addEventListener('beforeunload', (e) => {
+    if (changed) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // Start on the week in the address (#2026-10-18), or this week.
+  const fromHash = /^#(\d{4}-\d{2}-\d{2})$/.exec(location.hash);
+  week = fromHash ? sundayOf(parse(fromHash[1])) : sundayOf(new Date());
+  if (store((s) => s.getItem(CODE_KEY)) && store((s) => s.getItem(NAME_KEY))) {
+    $('#who').textContent = store((s) => s.getItem(NAME_KEY));
+    load(week);
+  } else {
+    showSignin();
+  }
+</script>
+</body>
+</html>
