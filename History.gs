@@ -105,7 +105,7 @@ function writeImportLog_(ss, log) {
   if (tab) tab.clear(); else tab = ss.insertSheet(HISTORY_LOG, ss.getNumSheets());
   const rows = [['Old tab', 'Old row', 'What happened', 'What was in the row']].concat(
     log.length ? log : [['', '', 'Every row with anything in it was copied.', '']]);
-  tab.getRange(1, 1, rows.length, 4).setValues(rows).setFontFamily('Poppins').setFontSize(10).setVerticalAlignment('top').setWrap(true);
+  tab.getRange(1, 1, rows.length, 4).setValues(rows).setFontFamily('Arial').setFontSize(10).setVerticalAlignment('top').setWrap(true);
   tab.getRange(1, 1, 1, 4).setBackground('#233617').setFontColor('#FFFFFF').setFontWeight('bold');
   tab.setFrozenRows(1);
   [190, 70, 300, 620].forEach(function (w, i) { tab.setColumnWidth(i + 1, w); });
@@ -234,7 +234,7 @@ function mergeChildren_(years, kids, log) {
 
 function styleHistoryTab_(tab, cols, rows) {
   const all = tab.getRange(1, 1, rows + 1, cols);
-  all.setFontFamily('Poppins').setFontSize(10).setVerticalAlignment('middle');
+  all.setFontFamily('Arial').setFontSize(10).setVerticalAlignment('middle');
   tab.getRange(1, 1, 1, cols).setBackground('#233617').setFontColor('#FFFFFF').setFontWeight('bold').setWrap(true)
     .setHorizontalAlignment('center');
   if (rows) {
