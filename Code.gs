@@ -45,6 +45,10 @@ const DOORS = [
   { group: 'North Wing', doors: [7, 8] },
 ];
 
+// How the Date and Submitted At columns show in the sheet.
+const DATE_FORMAT = 'ddd m/d/yyyy';
+const SUBMITTED_FORMAT = 'm/d/yyyy h:mm am/pm';
+
 const MAX_COUNT = 5000;
 const MAX_BAD_CODES = 20; // wrong usher codes allowed per 10 minutes, across all phones
 
@@ -187,6 +191,11 @@ function submitAttendance(form, replace) {
     } else {
       sheet.appendRow(row);
     }
+    // Writing a Date replaces the column's format with Sheets' default
+    // "10/14/2026 12:00:00", so put the column's format back on this row.
+    const saved = existing || sheet.getLastRow();
+    sheet.getRange(saved, cols['Date']).setNumberFormat(DATE_FORMAT);
+    sheet.getRange(saved, cols['Submitted At']).setNumberFormat(SUBMITTED_FORMAT);
     try {
       queueReport_();
     } catch (err) {
@@ -271,8 +280,8 @@ function formatSheet_(sheet, headers) {
   sheet.setFrozenColumns(2);
   headers.forEach(function (h, i) {
     const col = sheet.getRange(1, i + 1, sheet.getMaxRows(), 1);
-    if (h === 'Date') col.offset(1, 0, sheet.getMaxRows() - 1).setNumberFormat('ddd m/d/yyyy');
-    if (h === 'Submitted At') col.offset(1, 0, sheet.getMaxRows() - 1).setNumberFormat('m/d/yyyy h:mm am/pm');
+    if (h === 'Date') col.offset(1, 0, sheet.getMaxRows() - 1).setNumberFormat(DATE_FORMAT);
+    if (h === 'Submitted At') col.offset(1, 0, sheet.getMaxRows() - 1).setNumberFormat(SUBMITTED_FORMAT);
     if (h === 'Total Attendance' || /Subtotal$/.test(h)) {
       sheet.getRange(1, i + 1).setBackground('#4E7A35');
       col.offset(1, 0, sheet.getMaxRows() - 1).setFontWeight('bold');
@@ -294,7 +303,7 @@ function ensureSummary_(ss, cols) {
   if (cell.getFormula() !== formula) {
     cell.setFormula(formula);
     summary.getRange(1, 1, 1, 6).setFontWeight('bold').setFontColor('#ffffff').setBackground('#233617');
-    summary.getRange('A2:A').setNumberFormat('ddd m/d/yyyy');
+    summary.getRange('A2:A').setNumberFormat(DATE_FORMAT);
     summary.setFrozenRows(1);
   }
 }
