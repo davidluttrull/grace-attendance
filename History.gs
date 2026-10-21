@@ -149,12 +149,12 @@ function parseOldMain_(values, log) {
     while (main.length < 12) main.push('');
     const notes = [];
     if (d.note) notes.push(d.note);
-    // Notes are in column N, sometimes running on into O-Q (like "Mon-243", "Tue-160").
+    // Notes are in column N, sometimes running on into the next columns (like "Mon-184", "Tue-228", ... "Total-359").
     const n = String(v[13] || '').trim();
     let used = 13;   // the last column copied
     if (n && !TABLE_LABELS.test(n) && typeof cellValue_(n) !== 'number') {
       notes.push(n);
-      for (let c = 14; c <= 16; c++) {
+      for (let c = 14; c < v.length; c++) {
         const more = String(v[c] || '').trim();
         if (!more || TABLE_LABELS.test(more) || typeof cellValue_(more) === 'number') break;
         notes.push(more);
