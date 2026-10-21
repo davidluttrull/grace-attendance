@@ -104,7 +104,7 @@ The emailed report reads the History tabs for **Recent services** and **Compared
 - **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, and notes.
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
 - **Report Emails:** the addresses that get the report.
-- **History 2006** to **History 2026:** the old sheet's numbers, one tab per year (see above).
+- **History 2026** back to **History 2006:** the old sheet's numbers, one tab per year, newest first (see above).
 
 You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** tab name and the existing header names unchanged.
 

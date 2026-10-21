@@ -67,6 +67,7 @@ function importHistory() {
     summary.push(name + ': ' + values.length + ' rows');
   });
   writeImportLog_(ss, log);
+  orderHistoryTabs_(ss);
   const skipped = log.filter(function (l) { return l[2].indexOf('Copied') !== 0 && l[2].indexOf('Added') !== 0; }).length;
   const message = 'Imported ' + summary.length + ' years.\n' + summary.join('\n') +
     '\n\n' + log.length + (log.length === 1 ? ' entry' : ' entries') + ' on the ' + HISTORY_LOG + ' tab (' + skipped + ' rows not copied). Look them over for anything that should have been kept.';
@@ -83,6 +84,19 @@ function rowText_(v) {
     if (t) out.push(columnLetter_(i + 1) + ': ' + t);
   });
   return out.join(' | ');
+}
+
+/** Puts the History tabs after the other tabs, newest year first, with the import log last. */
+function orderHistoryTabs_(ss) {
+  const history = ss.getSheets().filter(function (t) { return /^History \d{4}$/.test(t.getName()); })
+    .sort(function (a, b) { return b.getName().localeCompare(a.getName()); });
+  const log = ss.getSheetByName(HISTORY_LOG);
+  const others = ss.getSheets().length - history.length - (log ? 1 : 0);
+  history.concat(log ? [log] : []).forEach(function (tab, i) {
+    ss.setActiveSheet(tab);
+    ss.moveActiveSheet(others + i + 1);
+  });
+  ss.setActiveSheet(ss.getSheets()[0]);
 }
 
 /** Writes the import log tab, replacing an earlier one. */
