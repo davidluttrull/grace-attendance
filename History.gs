@@ -13,12 +13,17 @@
  * Run importHistory once from the editor (or the Attendance menu). Running it
  * again rebuilds the History tabs from the old sheet, so edit the old sheet,
  * not the History tabs, if a past number needs fixing before the next import.
+ *
+ * Nothing is left out silently: every non-blank row of the old sheet that
+ * isn't copied, and any cells cut from the right of a copied row, are listed
+ * with the reason on a "History Import Log" tab.
  */
 
 const OLD_SHEET_ID = '17uKsSNSYH2jGkFCK9bjijiRYlm2R8vZh9xJMxFiwWo8';
 const OLD_MAIN_TAB = 'Attendance Report';
 const OLD_CHILDREN_TAB = "Children's Ministries Attendance";
 const HISTORY_PREFIX = 'History ';
+const HISTORY_LOG = 'History Import Log';
 
 // Old sheet columns A-M, then the notes in N.
 const HISTORY_HEADERS = ['Date', 'Bus', 'Keenagers/HGM', 'K4T/AWANA', 'Sunday AM', 'Auditorium', 'Kidstown',
@@ -39,9 +44,10 @@ const TABLE_LABELS = /^(SS|AM|PM|SUN AM|SUN PM|AWANA|WED|Wed|Wednesday|Kidstown|
 /** Copies the old sheet into one History tab per year. Shows what it did in a message and the Execution log. */
 function importHistory() {
   const old = SpreadsheetApp.openById(OLD_SHEET_ID);
-  const years = parseOldMain_(old.getSheetByName(OLD_MAIN_TAB).getDataRange().getDisplayValues());
+  const log = [];   // [old tab, old row, reason, what was in it]
+  const years = parseOldMain_(old.getSheetByName(OLD_MAIN_TAB).getDataRange().getDisplayValues(), log);
   const kids = old.getSheetByName(OLD_CHILDREN_TAB);
-  if (kids) mergeChildren_(years, parseOldChildren_(kids.getDataRange().getDisplayValues()));
+  if (kids) mergeChildren_(years, parseOldChildren_(kids.getDataRange().getDisplayValues(), log), log);
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const summary = [];
@@ -60,10 +66,36 @@ function importHistory() {
     styleHistoryTab_(tab, headers.length, values.length);
     summary.push(name + ': ' + values.length + ' rows');
   });
-  const message = 'Imported ' + summary.length + ' years.\n' + summary.join('\n');
+  writeImportLog_(ss, log);
+  const skipped = log.filter(function (l) { return l[2].indexOf('Copied') !== 0 && l[2].indexOf('Added') !== 0; }).length;
+  const message = 'Imported ' + summary.length + ' years.\n' + summary.join('\n') +
+    '\n\n' + log.length + (log.length === 1 ? ' entry' : ' entries') + ' on the ' + HISTORY_LOG + ' tab (' + skipped + ' rows not copied). Look them over for anything that should have been kept.';
   Logger.log(message);
   try { SpreadsheetApp.getUi().alert(message); } catch (e) { /* run from the editor */ }
   return summary;
+}
+
+/** A row's non-blank cells as "A: 7/2/06 | B: 93 | ...", for the import log. */
+function rowText_(v) {
+  const out = [];
+  v.forEach(function (x, i) {
+    const t = String(x || '').trim();
+    if (t) out.push(columnLetter_(i + 1) + ': ' + t);
+  });
+  return out.join(' | ');
+}
+
+/** Writes the import log tab, replacing an earlier one. */
+function writeImportLog_(ss, log) {
+  let tab = ss.getSheetByName(HISTORY_LOG);
+  if (tab) tab.clear(); else tab = ss.insertSheet(HISTORY_LOG, ss.getNumSheets());
+  const rows = [['Old tab', 'Old row', 'What happened', 'What was in the row']].concat(
+    log.length ? log : [['', '', 'Every row with anything in it was copied.', '']]);
+  tab.getRange(1, 1, rows.length, 4).setValues(rows).setFontFamily('Poppins').setFontSize(10).setVerticalAlignment('top').setWrap(true);
+  tab.getRange(1, 1, 1, 4).setBackground('#233617').setFontColor('#FFFFFF').setFontWeight('bold');
+  tab.setFrozenRows(1);
+  [190, 70, 300, 620].forEach(function (w, i) { tab.setColumnWidth(i + 1, w); });
+  tab.setTabColor('#8A5200');
 }
 
 /** "7/2/06" -> [7, 2, 2006]; anything else -> null. */
@@ -91,59 +123,87 @@ function sectionDate_(text, year) {
   return { date: date, note: p[2] === year ? '' : 'Date entered as ' + String(text).trim() };
 }
 
-/** The Attendance Report tab -> {year: [{date, main: [12 values], notes: []}]}. */
-function parseOldMain_(values) {
+/** Why a row with no usable date in column A wasn't copied. */
+function noDateReason_(a) {
+  if (/^[A-Za-z]{3}-\d{2}$/.test(a)) return 'Not copied: a monthly average row ("' + a + '"), not a single Sunday';
+  if (parseMDY_(a)) return 'Not copied: the date in column A couldn\'t be read';
+  return a ? 'Not copied: column A isn\'t a date' : 'Not copied: no date in column A';
+}
+
+/** The Attendance Report tab -> {year: [{date, main: [12 values], notes: []}]}. Skipped rows go in log. */
+function parseOldMain_(values, log) {
   const years = {};
+  const skip = function (i, v, reason) { if (rowText_(v)) log.push([OLD_MAIN_TAB, i + 1, reason, rowText_(v)]); };
   let year = null;
-  values.forEach(function (v) {
+  values.forEach(function (v, i) {
     const a = String(v[0] || '').trim();
-    if (/^(19|20)\d\d$/.test(a)) { year = Number(a); return; }
-    if (!year) return;
+    if (/^(19|20)\d\d$/.test(a)) {
+      year = Number(a);
+      if (rowText_(v.slice(1))) skip(i, v, 'Used as the year heading; the other cells in the row weren\'t copied');
+      return;
+    }
+    if (!year) { skip(i, v, 'Not copied: above the first year heading (titles and column headings)'); return; }
     const d = sectionDate_(a, year);
-    if (!d) return;   // blank rows, monthly averages like "Aug-06", the totals at the bottom
+    if (!d) { skip(i, v, noDateReason_(a)); return; }   // blank rows, monthly averages like "Aug-06", the totals at the bottom
     const main = v.slice(1, 13).map(cellValue_);
     while (main.length < 12) main.push('');
     const notes = [];
     if (d.note) notes.push(d.note);
     // Notes are in column N, sometimes running on into O-Q (like "Mon-243", "Tue-160").
     const n = String(v[13] || '').trim();
+    let used = 13;   // the last column copied
     if (n && !TABLE_LABELS.test(n) && typeof cellValue_(n) !== 'number') {
       notes.push(n);
-      for (let i = 14; i <= 16; i++) {
-        const more = String(v[i] || '').trim();
+      for (let c = 14; c <= 16; c++) {
+        const more = String(v[c] || '').trim();
         if (!more || TABLE_LABELS.test(more) || typeof cellValue_(more) === 'number') break;
         notes.push(more);
+        used = c;
       }
+    } else {
+      used = 12;
     }
     // A row with nothing but blanks and zeros was a placeholder for a Sunday never filled in.
     const filled = main.some(function (x) { return x !== '' && x !== 0; }) || notes.some(function (x) { return x !== d.note; });
-    if (!filled) return;
+    if (!filled) { skip(i, v, 'Not copied: a date with no numbers or notes (a Sunday never filled in)'); return; }
+    // Cells past the notes are the averages tables kept beside the rows.
+    const extra = v.slice(used + 1).map(function (x, k) { return String(x || '').trim() ? columnLetter_(used + 2 + k) + ': ' + String(x).trim() : ''; })
+      .filter(Boolean);
+    if (extra.length) log.push([OLD_MAIN_TAB, i + 1, 'Copied, except these cells to the right (averages tables)', extra.join(' | ')]);
     (years[year] = years[year] || []).push({ date: d.date, main: main, notes: notes });
   });
   return years;
 }
 
-/** The Children's Ministries tab -> [{year, date, kids: [15 values], note}]. Its year headers are in column B. */
-function parseOldChildren_(values) {
+/** The Children's Ministries tab -> [{year, date, kids: [15 values], note, row}]. Its year headers are in column B. */
+function parseOldChildren_(values, log) {
   const out = [];
+  const skip = function (i, v, reason) { if (rowText_(v)) log.push([OLD_CHILDREN_TAB, i + 1, reason, rowText_(v)]); };
   let year = null;
-  values.forEach(function (v) {
+  values.forEach(function (v, i) {
+    const a = String(v[0] || '').trim();
     const b = String(v[1] || '').trim();
-    if (!String(v[0] || '').trim() && /^(19|20)\d\d$/.test(b)) { year = Number(b); return; }
-    if (!year) return;
-    const d = sectionDate_(v[0], year);
-    if (!d) return;
+    if (!a && /^(19|20)\d\d$/.test(b)) {
+      year = Number(b);
+      if (rowText_(v.slice(2))) skip(i, v, 'Used as the year heading; the other cells in the row weren\'t copied');
+      return;
+    }
+    if (!year) { skip(i, v, 'Not copied: above the first year heading (titles and column headings)'); return; }
+    const d = sectionDate_(a, year);
+    if (!d) { skip(i, v, noDateReason_(a)); return; }
     const kids = v.slice(1, 16).map(cellValue_);
     while (kids.length < 15) kids.push('');
     const note = [d.note ? 'Children: ' + d.note.toLowerCase() : '', String(v[16] || '').trim()].filter(Boolean).join('; ');
-    if (!kids.some(function (x) { return x !== ''; }) && !note) return;
-    out.push({ year: year, date: d.date, kids: kids, note: note });
+    if (!kids.some(function (x) { return x !== ''; }) && !note) { skip(i, v, 'Not copied: a date with no numbers or notes'); return; }
+    const extra = v.slice(17).map(function (x, k) { return String(x || '').trim() ? columnLetter_(18 + k) + ': ' + String(x).trim() : ''; }).filter(Boolean);
+    if (extra.length) log.push([OLD_CHILDREN_TAB, i + 1, 'Copied, except these cells to the right', extra.join(' | ')]);
+    out.push({ year: year, date: d.date, kids: kids, note: note, row: i + 1, text: rowText_(v) });
   });
   return out;
 }
 
-/** Puts each children's row on the same date's row of that year, or a row of its own. */
-function mergeChildren_(years, kids) {
+/** Puts each children's row on the same date's row of that year, or a row of its own (noted in the log). */
+function mergeChildren_(years, kids, log) {
   const key = function (d) { return d.getMonth() + '/' + d.getDate(); };
   kids.forEach(function (k) {
     const rows = years[k.year] = years[k.year] || [];
@@ -151,7 +211,10 @@ function mergeChildren_(years, kids) {
     const row = match || { date: k.date, main: HISTORY_HEADERS.slice(1, 13).map(function () { return ''; }), notes: [] };
     row.kids = k.kids;
     if (k.note) row.notes.push(k.note);
-    if (!match) rows.push(row);
+    if (!match) {
+      rows.push(row);
+      log.push([OLD_CHILDREN_TAB, k.row, 'Added as its own row: no ' + k.year + ' Sunday with this date in the main tab (check the date)', k.text]);
+    }
   });
 }
 
