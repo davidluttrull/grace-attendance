@@ -53,9 +53,7 @@ function sendWeeklySelected_(recipients, record) {
 
 /** The most recent Sunday (today, on a Sunday), at noon. */
 function latestSunday_(tz) {
-  const now = new Date();
-  const back = Number(Utilities.formatDate(now, tz, 'u')) % 7;   // 'u' is 1 for Monday ... 7 for Sunday
-  return parseDate_(ymd_(new Date(now.getTime() - back * DAY_MS), tz));
+  return parseDate_(weekOf_(new Date(), tz));
 }
 
 /** Builds and emails one week's report. record: note the outcome on the Weekly tab. */

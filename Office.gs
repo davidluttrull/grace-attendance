@@ -83,6 +83,12 @@ function ymd_(d, tz) {
   return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
 }
 
+/** The Sunday ("yyyy-MM-dd") of the week a date falls in. */
+function weekOf_(d, tz) {
+  const back = Number(Utilities.formatDate(d, tz, 'u')) % 7;   // 'u' is 1 for Monday ... 7 for Sunday
+  return ymd_(new Date(parseDate_(ymd_(d, tz)).getTime() - back * DAY_MS), tz);
+}
+
 /** Everything the office page shows for the week starting on sunday. */
 function officeWeek_(sunday) {
   const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
@@ -359,6 +365,12 @@ function saveOfficeWeek_(form) {
     if (!row && tab.getLastRow() > 2) {
       // Keep the weeks in order when an earlier one is filled in late.
       tab.getRange(2, 1, tab.getLastRow() - 1, tab.getLastColumn()).sort(wcols['Week Of']);
+    }
+    try {
+      syncHistory_([ymd_(sunday, tz)]);
+    } catch (err) {
+      // The week is saved; the History tab catches up from the Attendance menu.
+      console.error('Could not update the History tab: ' + err.message);
     }
   } finally {
     lock.releaseLock();

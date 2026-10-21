@@ -14,6 +14,10 @@
  * again rebuilds the History tabs from the old sheet, so edit the old sheet,
  * not the History tabs, if a past number needs fixing before the next import.
  *
+ * Since the ushers' page and the office page, syncHistory_ (at the bottom)
+ * keeps filling in the History tabs from the Attendance and Weekly tabs, so
+ * each History tab stays the whole year's record, one row per week.
+ *
  * Nothing is left out silently: every non-blank row of the old sheet that
  * isn't copied, and any cells cut from the right of a copied row, are listed
  * with the reason on a "History Import Log" tab.
@@ -67,10 +71,13 @@ function importHistory() {
     summary.push(name + ': ' + values.length + ' rows');
   });
   writeImportLog_(ss, log);
+  // Put back the weeks the ushers' page and the office page have filled in.
+  const synced = syncHistory_(null);
   orderHistoryTabs_(ss);
   const skipped = log.filter(function (l) { return l[2].indexOf('Copied') !== 0 && l[2].indexOf('Added') !== 0; }).length;
   const message = 'Imported ' + summary.length + ' years.\n' + summary.join('\n') +
-    '\n\n' + log.length + (log.length === 1 ? ' entry' : ' entries') + ' on the ' + HISTORY_LOG + ' tab (' + skipped + ' rows not copied). Look them over for anything that should have been kept.';
+    '\n\n' + log.length + (log.length === 1 ? ' entry' : ' entries') + ' on the ' + HISTORY_LOG + ' tab (' + skipped + ' rows not copied). Look them over for anything that should have been kept.' +
+    (synced ? '\n\nThen filled in ' + synced + ' weeks from the Attendance and Weekly tabs.' : '');
   Logger.log(message);
   try { SpreadsheetApp.getUi().alert(message); } catch (e) { /* run from the editor */ }
   return summary;
@@ -272,4 +279,131 @@ function historyCounts_(service, years) {
     });
   });
   return out;
+}
+
+// ---- Keeping history up to date ----------------------------------------------
+//
+// Each week's History row is filled from the Attendance tab (the service
+// totals and the children's rooms) and the Weekly tab (Sunday School,
+// Keenagers, AWANA and the office's notes). A column whose source hasn't been
+// entered yet (a service the ushers didn't log, a week the office hasn't
+// saved) keeps whatever the old sheet had there. Bus, Kidstown, Wed 4th-6th
+// and Wed Teens have no source any more and are left alone.
+
+/** Where each History column comes from: an Attendance column or areas of a service, or a Weekly tab column. */
+function historySources_() {
+  const nurseries = ['Infant Nursery (0-1 yrs)', 'Baby Nursery (1-2 yrs)', 'Toddler Nursery (2-3 yrs)'];
+  const out = {
+    'Sunday AM': { service: 'Sunday AM', column: 'Total Attendance' },
+    'Auditorium': { service: 'Sunday AM', column: 'Auditorium Subtotal' },
+    'Sunday PM': { service: 'Sunday PM', column: 'Total Attendance' },
+    'Wednesday': { service: 'Wednesday', column: 'Total Attendance' },
+    'AM Nursery': { service: 'Sunday AM', areas: nurseries },
+    'AM K4-K5': { service: 'Sunday AM', areas: ['Pre-Primary (4-5 yrs)'] },
+    'AM 1st-3rd': { service: 'Sunday AM', areas: ['Junior Church (1st-3rd)'] },
+    'PM Nursery': { service: 'Sunday PM', areas: nurseries },
+    'Wed Nursery': { service: 'Wednesday', areas: nurseries },
+    'Wed K4-K5': { service: 'Wednesday', areas: ['Pre-Primary (4-5 yrs)'] },
+    'Wed 1st-3rd': { service: 'Wednesday', areas: ['Junior Church (1st-3rd)'] },
+    'Notes': { weekly: 'Notes' },
+    'SS Teens': { weekly: 'SS Teen' },   // the old Children's Ministries tab repeated SS Teen
+  };
+  officeColumns_().forEach(function (k) { out[k] = { weekly: k }; });
+  return out;
+}
+
+/**
+ * Fills in the History rows for the given weeks (their Sundays, as
+ * "yyyy-MM-dd"), or for every week on the Attendance and Weekly tabs when
+ * weeks is null. A week goes on the row dated in it (the Sunday), or a new
+ * row in date order; a new year gets a new History tab. Returns how many
+ * weeks it filled in.
+ */
+function syncHistory_(weeks) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = ss.getSpreadsheetTimeZone();
+  const byWeek = {};
+  const week = function (key) { return byWeek[key] = byWeek[key] || { services: {}, weekly: null }; };
+
+  // The ushers' services, by week. A later row for the same service wins.
+  const sheet = getSheet_();
+  const cols = headerIndex_(sheet);
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues().forEach(function (r) {
+      const d = r[cols['Date'] - 1];
+      if (d instanceof Date) week(weekOf_(d, tz)).services[r[cols['Service'] - 1]] = r;
+    });
+  }
+  // The office's numbers, by week, once someone has saved them.
+  const weekly = weeklyTab_();
+  const wcols = tabColumns_(weekly);
+  if (weekly.getLastRow() > 1) {
+    weekly.getRange(2, 1, weekly.getLastRow() - 1, weekly.getLastColumn()).getValues().forEach(function (r) {
+      const d = r[wcols['Week Of'] - 1];
+      if (d instanceof Date && r[wcols['Updated By'] - 1]) week(ymd_(d, tz)).weekly = r;
+    });
+  }
+
+  const years = {};
+  (weeks || Object.keys(byWeek)).forEach(function (key) {
+    if (byWeek[key]) (years[key.slice(0, 4)] = years[key.slice(0, 4)] || []).push(key);
+  });
+  const sources = historySources_();
+  let filled = 0;
+  Object.keys(years).forEach(function (year) {
+    let tab = ss.getSheetByName(HISTORY_PREFIX + year);
+    const isNew = !tab;
+    if (isNew) tab = ss.insertSheet(HISTORY_PREFIX + year, ss.getNumSheets());
+    const width = tab.getLastColumn();
+    const values = tab.getLastRow() ? tab.getRange(1, 1, tab.getLastRow(), width).getValues() : [[]];
+    const head = values[0].map(String);
+    HISTORY_HEADERS.concat(CHILDREN_HEADERS).forEach(function (h) { if (head.indexOf(h) === -1) head.push(h); });
+    const rows = values.slice(1).map(function (r) {
+      while (r.length < head.length) r.push('');
+      return r;
+    });
+
+    years[year].forEach(function (key) {
+      const w = byWeek[key];
+      const end = ymd_(new Date(parseDate_(key).getTime() + 6 * DAY_MS), tz);
+      let row = rows.filter(function (r) { return r[0] instanceof Date && ymd_(r[0], tz) >= key && ymd_(r[0], tz) <= end; })[0];
+      if (!row) {
+        row = head.map(function () { return ''; });
+        row[0] = parseDate_(key);
+        rows.push(row);
+      }
+      Object.keys(sources).forEach(function (h) {
+        const src = sources[h];
+        const c = head.indexOf(h);
+        if (src.weekly) {
+          if (!w.weekly || !wcols[src.weekly]) return;
+          const v = w.weekly[wcols[src.weekly] - 1];
+          if (h === 'Notes' && v === '') return;   // keep the old sheet's note
+          row[c] = v;
+        } else {
+          const r = w.services[src.service];
+          if (!r) return;
+          row[c] = src.column ? r[cols[src.column] - 1]
+            : sum_(src.areas.map(function (a) { return cols[a] ? r[cols[a] - 1] : ''; }));
+        }
+      });
+      filled++;
+    });
+
+    rows.sort(function (a, b) {
+      return (a[0] instanceof Date ? a[0].getTime() : 0) - (b[0] instanceof Date ? b[0].getTime() : 0);
+    });
+    tab.getRange(1, 1, 1, head.length).setValues([head]);
+    if (rows.length) tab.getRange(2, 1, rows.length, head.length).setValues(rows);
+    if (isNew || head.length > width) styleHistoryTab_(tab, head.length, rows.length);
+    else if (rows.length) tab.getRange(2, 1, rows.length, 1).setNumberFormat('M/d/yyyy');
+    if (isNew) orderHistoryTabs_(ss);
+  });
+  return filled;
+}
+
+/** Menu: fill in every week the ushers' page and the office page have on the History tabs. */
+function syncHistoryMenu() {
+  const n = syncHistory_(null);
+  SpreadsheetApp.getUi().alert('Filled in ' + n + (n === 1 ? ' week' : ' weeks') + ' on the History tabs from the Attendance and Weekly tabs.');
 }

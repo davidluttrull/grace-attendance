@@ -123,7 +123,26 @@ Attendance from July 2006 until the ushers' page was kept by hand in the **Atten
 - Numbers stay numbers, and words like "No Service" or "Snow Day" stay as they were typed. A few dates in the old sheet had the wrong year (like "2/4/06" in the 2007 section); they're filed under the year they were listed in, with a note saying what was typed. Rows with nothing in them, and the monthly averages and summary tables, aren't copied.
 - To import, open Apps Script, click **History.gs** in the Files list, pick **importHistory** in the dropdown, and click **Run**. It takes a minute and shows how many rows each year got. You can also run it from the Sheet's **Attendance** menu.
 - Nothing is left out silently. A **History Import Log** tab lists every row of the old sheet that wasn't copied, and any cells cut off the right of a copied row, with the reason and what was in the row. Children's rows whose date has no match in the main tab are listed too, because they're usually a typo. Look the log over after an import.
-- Running it again rebuilds the History tabs and the log from the old sheet. To correct a past number, fix it in the old sheet and import again, or edit the History tab and don't import again.
+- Running it again rebuilds the History tabs and the log from the old sheet, then fills the new pages' weeks back in (see below). To correct a past number, fix it in the old sheet and import again, or edit the History tab and don't import again.
+
+### History keeps going from the new pages
+
+The History tabs stay the full record, one row per week, after the old sheet. Each time an usher submits or the office saves, the script fills in that week's row on the History tab for its year. It creates **History 2027** and later tabs when the year turns.
+
+| History column | Comes from |
+|---|---|
+| Sunday AM, Sunday PM, Wednesday | That service's Total Attendance on the Attendance tab. Wednesday goes on the row of the Sunday before it, as in the old sheet. |
+| Auditorium | Sunday AM's Auditorium Subtotal. |
+| AM Nursery, PM Nursery, Wed Nursery | The three nurseries added together, at that service. |
+| AM K4-K5, Wed K4-K5 | Pre-Primary (4-5 yrs), at that service. |
+| AM 1st-3rd, Wed 1st-3rd | Junior Church (1st-3rd), at that service. |
+| Keenagers/HGM, K4T/AWANA, the Sunday School columns, Notes | The week's row on the Weekly tab. SS Teens repeats SS Teen, as the old sheet did. |
+| Bus, Kidstown, Wed 4th-6th, Wed Teens | Nothing any more. They stay blank, or keep what the old sheet had. |
+
+- A week goes on the History row dated in that week, so a Sunday count an usher logged on Tuesday still lands on Sunday's row.
+- Only columns that have something to fill them change. If the ushers haven't logged a service or the office hasn't saved the week, those columns keep whatever was there. A blank office note doesn't erase the old sheet's note.
+- Edits typed straight into a History tab stay until that week is filled in again, which happens the next time an usher submits that week or the office saves it. To change a number for good, change it on the Attendance or Weekly tab (or on the office page).
+- **Attendance → Fill in History tabs from Attendance and Weekly** fills in every week at once. Use it after editing the Attendance or Weekly tab by hand.
 
 The emailed report reads the History tabs for **Recent services** and **Compared with last year**: the same week last year, this year's average so far, and last year's average over the same weeks. The Total Attendance box also says how this service compares with the same week last year. The Attendance tab counts first; history fills in the dates before it. For Wednesday, the old sheet kept the count on the Sunday row, so the report dates it to that week's Wednesday.
 
@@ -133,7 +152,7 @@ The emailed report reads the History tabs for **Recent services** and **Compared
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
 - **Weekly:** the office page's numbers, one row per week (the Sunday's date), with the same column names as the History tabs, who saved it last, and when the weekly report went out.
 - **Report Emails:** the addresses that get both reports.
-- **History 2026** back to **History 2006:** the old sheet's numbers, one tab per year, newest first (see above).
+- **History 2026** back to **History 2006:** one tab per year, newest first. The old sheet's numbers, and from October 2026 the weeks from the ushers' page and the office page (see above).
 
 You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** and **Weekly** tab names and the existing header names unchanged.
 

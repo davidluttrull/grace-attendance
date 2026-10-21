@@ -46,6 +46,7 @@ function onOpen() {
     .addItem('Send me a test weekly report', 'emailWeeklyReportToMe')
     .addSeparator()
     .addItem('Import history from the old attendance sheet', 'importHistory')
+    .addItem('Fill in History tabs from Attendance and Weekly', 'syncHistoryMenu')
     .addToUi();
 }
 
@@ -72,6 +73,18 @@ function sendPendingReports() {
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return;
     const status = sheet.getRange(2, cols[REPORT_STATUS], lastRow - 1, 1).getValues();
+    // Fill in the History tab for these services' weeks first (History.gs).
+    const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    const dates = sheet.getRange(2, cols['Date'], lastRow - 1, 1).getValues();
+    const weeks = {};
+    status.forEach(function (s, i) {
+      if (String(s[0]).indexOf('Pending') === 0 && dates[i][0] instanceof Date) weeks[weekOf_(dates[i][0], tz)] = true;
+    });
+    try {
+      syncHistory_(Object.keys(weeks));
+    } catch (err) {
+      console.error('Could not update the History tabs: ' + err.message);
+    }
     status.forEach(function (s, i) {
       if (String(s[0]).indexOf('Pending') === 0) {
         emailReportForRow_(sheet, cols, i + 2, reportRecipients_(), String(s[0]).indexOf('update') > -1);
@@ -203,13 +216,15 @@ function reportData_(sheet, cols, row, tz) {
     }
   });
   // Counts from before the ushers' page, from the History tabs (History.gs).
-  // The Attendance tab wins when both have the same service on the same day.
+  // The Attendance tab wins when both have the same service in the same week.
   if (data.service !== 'Other' && data.date instanceof Date) {
     const year = data.date.getFullYear();
+    // By week, since an usher may log Sunday's count on a Tuesday, and the
+    // History tabs now hold this page's weeks too (syncHistory_).
     const logged = {};
-    data.history.forEach(function (e) { logged[day(e.date)] = true; });
+    data.history.forEach(function (e) { logged[weekOf_(e.date, tz)] = true; });
     historyCounts_(data.service, [year - 2, year - 1, year]).forEach(function (e) {
-      if (!logged[day(e.date)] && day(e.date) <= thisDay) data.history.push({ date: e.date, total: e.total, current: false, past: true });
+      if (!logged[weekOf_(e.date, tz)] && day(e.date) <= thisDay) data.history.push({ date: e.date, total: e.total, current: false, past: true });
     });
   }
   data.history.sort(function (a, b) { return a.date - b.date; });
