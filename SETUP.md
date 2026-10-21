@@ -1,6 +1,6 @@
 # Usher Attendance: Setup
 
-This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff. A second page, for the church office, takes the week's other numbers (Sunday School, the ministries, the children's classes) and emails a weekly report every Saturday morning.
+This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff. A second page, for the church office, takes the week's other numbers (Sunday School, Keenagers, AWANA) and emails a weekly report every Saturday morning.
 
 It has three parts:
 
@@ -79,8 +79,9 @@ The office fills in the week's other numbers at <https://davidluttrull.github.io
 - The first time, it asks for a name and the **office code**, and that computer remembers both. The usher code doesn't open it: the office page can read and change everything the ushers logged.
 - It opens on the current week, Sunday through Saturday. The arrows move a week at a time, and **Go to** jumps to the week containing any date. The address ends in the week's Sunday (`…/office/#2026-10-18`), so a bookmark goes back to that week.
 - **Usher Counts** lists the week's services: Sunday AM, Sunday PM, Wednesday, and any others the ushers logged. Open one to see every area. Change a number to correct it, or fill in a service the ushers missed. Saving updates or adds that service's row on the Attendance tab and notes who changed it in the **Office Edit** column. It doesn't email the per-service report.
-- Below that are the numbers the ushers don't count, under the same names as the History tabs' columns: Sunday School (adults, teens, children, and a total it adds up), the Sunday School classes, the ministries (Bus, Keenagers/HGM, K4T/AWANA, Kidstown), and the children's classes for Sunday morning, Sunday evening and Wednesday. The Sunday School "Teens" box fills both SS Teen and SS Teens, which the old sheet kept twice.
-- The nursery, K4-K5 and 1st-3rd boxes for each service start at the ushers' count for those rooms (the three nurseries added together; Pre-Primary; Junior Church). They're shaded and marked **ushers** until someone types over them, and they follow the ushers' numbers if those change before the office saves.
+- Below that are the numbers the ushers don't count: Sunday School adults and teens, the five Sunday School classes (Nursery, K4-K5, 1st-2nd, 3rd-4th, 5th-6th), Keenagers and AWANA. Children's attendance during services isn't here, because the ushers count it.
+- Sunday School **Children** isn't typed in. It's the total of the classes, and the Sunday School **Total** is adults plus teens plus children. Both update as the boxes change.
+- On the Weekly tab, Keenagers and AWANA are saved under the History tabs' column names, **Keenagers/HGM** and **K4T/AWANA**, so the weekly report can find last year's numbers.
 - **Save** puts the week on the **Weekly** tab, one row per week. Save as often as you like through the week: each save replaces that week's row. Saving doesn't email anyone.
 - For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied, because the boxes only take numbers. The History tab keeps them.
 - If you move to another week or close the page with unsaved changes, it asks first.
@@ -106,7 +107,7 @@ The Sheet has an **Attendance** menu (it appears a few seconds after the Sheet o
 
 ### The weekly report
 
-Every Saturday at about 7 AM, the script emails the week just past to the same **Report Emails** list. It covers each service's count by section, then Sunday School, the classes, the ministries and the children's classes, each beside the same week last year. Office and usher notes come last. A children's class the office left blank shows the ushers' count for those rooms, with an asterisk.
+Every Saturday at about 7 AM, the script emails the week just past to the same **Report Emails** list. It covers each service's count by section, then Sunday School, its classes, Keenagers and AWANA, each beside the same week last year. Office and usher notes come last.
 
 - The **Weekly Report** column on the Weekly tab shows when each week's report went out, or why it didn't.
 - The menu has **Email weekly report** and **Send me a test weekly report**. Click a row on the Weekly tab first to send that week; otherwise they send the latest week.

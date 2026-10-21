@@ -2,9 +2,9 @@
  * Grace Baptist Church - Usher Attendance: the office page
  *
  * Back end for office/index.html. Through the week, the office fills in the
- * numbers the ushers don't count (Sunday School, the ministries and the
- * children's classes: the other columns of the History tabs) and checks or
- * corrects what the ushers logged. A week is a Sunday and the Wednesday after
+ * numbers the ushers don't count (Sunday School and its classes, Keenagers and
+ * AWANA: columns of the History tabs) and checks or corrects what the ushers
+ * logged. A week is a Sunday and the Wednesday after
  * it, as in the History tabs. Its office numbers are one row of the Weekly
  * tab, under the same column names as the History tabs.
  *
@@ -21,11 +21,9 @@ const WEEKLY_STATUS = 'Weekly Report';
 const OFFICE_EDIT = 'Office Edit';   // Attendance tab column: who entered or changed the row on the office page
 const DAY_MS = 86400000;
 
-const NURSERIES = ['Infant Nursery (0-1 yrs)', 'Baby Nursery (1-2 yrs)', 'Toddler Nursery (2-3 yrs)'];
-
 // What the office page asks for, card by card. Each key is a History tab
-// column. A card with a service starts its "from" boxes at the ushers' count
-// for that service (those areas added up) until the office saves a number.
+// column; labels are what the page and the weekly email show. A "sumOf" field
+// isn't typed: it's the total of that card's boxes, filled in as they change.
 const OFFICE_GROUPS = [
   {
     title: 'Sunday School',
@@ -33,7 +31,7 @@ const OFFICE_GROUPS = [
     fields: [
       { key: 'SS Adult', label: 'Adults' },
       { key: 'SS Teen', label: 'Teens' },
-      { key: 'SS Children', label: 'Children' },
+      { key: 'SS Children', label: 'Children', sumOf: 'Sunday School Classes' },
     ],
   },
   {
@@ -49,43 +47,11 @@ const OFFICE_GROUPS = [
   {
     title: 'Ministries',
     fields: [
-      { key: 'Bus', label: 'Bus' },
-      { key: 'Keenagers/HGM', label: 'Keenagers/HGM' },
-      { key: 'K4T/AWANA', label: 'K4T/AWANA' },
-      { key: 'Kidstown', label: 'Kidstown' },
-    ],
-  },
-  {
-    title: 'Sunday Morning Children',
-    service: 'Sunday AM',
-    fields: [
-      { key: 'AM Nursery', label: 'Nursery', from: NURSERIES },
-      { key: 'AM K4-K5', label: 'K4-K5', from: ['Pre-Primary (4-5 yrs)'] },
-      { key: 'AM 1st-3rd', label: '1st-3rd', from: ['Junior Church (1st-3rd)'] },
-    ],
-  },
-  {
-    title: 'Sunday Evening Children',
-    service: 'Sunday PM',
-    fields: [
-      { key: 'PM Nursery', label: 'Nursery', from: NURSERIES },
-    ],
-  },
-  {
-    title: 'Wednesday Children',
-    service: 'Wednesday',
-    fields: [
-      { key: 'Wed Nursery', label: 'Nursery', from: NURSERIES },
-      { key: 'Wed K4-K5', label: 'K4-K5', from: ['Pre-Primary (4-5 yrs)'] },
-      { key: 'Wed 1st-3rd', label: '1st-3rd', from: ['Junior Church (1st-3rd)'] },
-      { key: 'Wed 4th-6th', label: '4th-6th' },
-      { key: 'Wed Teens', label: 'Teens' },
+      { key: 'Keenagers/HGM', label: 'Keenagers' },
+      { key: 'K4T/AWANA', label: 'AWANA' },
     ],
   },
 ];
-// The old sheet's Children's Ministries tab repeated SS Teen as SS Teens, so
-// the page asks once and fills both.
-const OFFICE_COPIES = { 'SS Teens': 'SS Teen' };
 // The services every week has, and how many days after its Sunday each falls.
 const WEEK_SERVICES = [
   { service: 'Sunday AM', days: 0 },
@@ -185,14 +151,14 @@ function weekServices_(sheet, cols, sunday, tz) {
 
 // ---- The Weekly tab ---------------------------------------------------------
 
-/** Every History column the office fills: the fields, the totals and the copies. */
+/** Every History column the office fills: the fields and the totals. */
 function officeColumns_() {
   const out = [];
   OFFICE_GROUPS.forEach(function (g) {
     if (g.total) out.push(g.total);
     g.fields.forEach(function (f) { out.push(f.key); });
   });
-  return out.concat(Object.keys(OFFICE_COPIES));
+  return out;
 }
 
 /** The Weekly tab's columns: the office's History columns, in the History tabs' order. */
@@ -308,6 +274,16 @@ function historyWeek_(sunday, tz, keys) {
 
 // ---- Saving -------------------------------------------------------------------
 
+function officeGroup_(title) {
+  return OFFICE_GROUPS.filter(function (g) { return g.title === title; })[0];
+}
+
+/** The total of the numbers in list, or "" when none of them is a number. */
+function sum_(list) {
+  const nums = list.filter(function (n) { return typeof n === 'number'; });
+  return nums.length ? nums.reduce(function (t, n) { return t + n; }, 0) : '';
+}
+
 /**
  * Saves the office page: its numbers to the week's Weekly row, and any usher
  * counts it changed to the Attendance tab. A service the ushers didn't log
@@ -322,7 +298,18 @@ function saveOfficeWeek_(form) {
   const given = form.office || {};
   const office = {};
   OFFICE_GROUPS.forEach(function (g) {
-    g.fields.forEach(function (f) { office[f.key] = count_(given[f.key], f.label + ' (' + g.title + ')'); });
+    g.fields.forEach(function (f) {
+      if (!f.sumOf) office[f.key] = count_(given[f.key], f.label + ' (' + g.title + ')');
+    });
+  });
+  // Then the added-up ones: each sumOf field, then each card's total.
+  OFFICE_GROUPS.forEach(function (g) {
+    g.fields.forEach(function (f) {
+      if (f.sumOf) office[f.key] = sum_(officeGroup_(f.sumOf).fields.map(function (x) { return office[x.key]; }));
+    });
+  });
+  OFFICE_GROUPS.forEach(function (g) {
+    if (g.total) office[g.total] = sum_(g.fields.map(function (f) { return office[f.key]; }));
   });
   const services = (form.services || []).map(function (s) {
     const service = String(s.service || '');
@@ -365,13 +352,6 @@ function saveOfficeWeek_(form) {
 
     const record = { 'Week Of': sunday, 'Notes': clean_(form.notes, 500), 'Updated By': by, 'Updated At': new Date() };
     Object.keys(office).forEach(function (k) { record[k] = office[k]; });
-    OFFICE_GROUPS.forEach(function (g) {
-      if (!g.total) return;
-      const parts = g.fields.map(function (f) { return office[f.key]; });
-      record[g.total] = parts.some(function (n) { return n !== ''; })
-        ? parts.reduce(function (t, n) { return t + (n || 0); }, 0) : '';
-    });
-    Object.keys(OFFICE_COPIES).forEach(function (k) { record[k] = office[OFFICE_COPIES[k]]; });
     const tab = weeklyTab_();
     const wcols = tabColumns_(tab);
     const row = weeklyRow_(tab, wcols, sunday, tz);

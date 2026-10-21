@@ -27,9 +27,7 @@
     --btn-bg: #233617;
     --btn-ink: #FFFFFF;
     --filled: #F6FAF2;
-    --prefill: #FFF7E0;
-    --prefill-line: #E9D59A;
-    --prefill-ink: #7A5A00;
+    --warn-ink: #7A5A00;
     --danger: #B3261E;
     --ok: #3D7A28;
     --shadow: 0 1px 2px rgba(35, 54, 23, .06), 0 2px 8px rgba(35, 54, 23, .06);
@@ -47,9 +45,7 @@
       --btn-bg: #7BAE58;
       --btn-ink: #10160C;
       --filled: #1F2C18;
-      --prefill: #2E2810;
-      --prefill-line: #5C4E1E;
-      --prefill-ink: #E9D59A;
+      --warn-ink: #E9D59A;
       --danger: #F2B8B5;
       --ok: #A8D88E;
       --shadow: none;
@@ -188,18 +184,14 @@
     font-variant-numeric: tabular-nums;
   }
   .num input:not(:placeholder-shown) { background: var(--filled); border-color: var(--step-line); }
-  .num input.prefilled { background: var(--prefill); border-color: var(--prefill-line); }
-  .tag {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 0 6px;
-    border-radius: 6px;
-    font-size: 11px;
+  .num output {
+    width: 76px;
+    flex: none;
+    text-align: center;
+    font-size: 18px;
     font-weight: 600;
-    vertical-align: 1px;
-    background: var(--prefill);
-    color: var(--prefill-ink);
-    border: 1px solid var(--prefill-line);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .total-row {
     display: flex;
@@ -235,7 +227,7 @@
   .svc-name { flex: 1; min-width: 0; }
   .svc-name b { font-weight: 600; }
   .svc-name small { display: block; font-size: 13px; color: var(--muted); }
-  .svc-name small.missing { color: var(--prefill-ink); }
+  .svc-name small.missing { color: var(--warn-ink); }
   .svc-total { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .svc-body { padding: 0 0 12px 20px; }
   .svc-body .hint { margin-top: 10px; }
@@ -542,16 +534,21 @@
     w.groups.forEach((g, gi) => {
       const card = document.createElement('section');
       card.className = 'card';
-      card.innerHTML = '<div class="card-head"><h2>' + esc(g.title) + '</h2>' +
-        (g.service ? '<span class="sub">' + esc(g.service) + '</span>' : '') + '</div>' +
-        (g.fields.some((f) => f.from) ? '<p class="hint">Boxes marked <span class="tag">ushers</span> start at the ushers\' count for those rooms. Type over them if yours is different.</p>' : '');
+      card.innerHTML = '<div class="card-head"><h2>' + esc(g.title) + '</h2></div>';
       const grid = document.createElement('div');
       grid.className = 'grid';
       g.fields.forEach((f) => {
+        if (f.sumOf) {
+          // Not typed: the total of another card's boxes, kept up to date by recalc.
+          const row = document.createElement('div');
+          row.className = 'num';
+          row.innerHTML = '<label>' + esc(f.label) + '<small>Total of the ' + esc(f.sumOf) + ' card</small></label>' +
+            '<output data-sum="' + esc(f.key) + '"></output>';
+          grid.appendChild(row);
+          return;
+        }
         const row = numRow(f.label, { key: f.key, group: gi });
-        const input = row.querySelector('input');
-        input.value = value(w.office[f.key]);
-        if (f.from && input.value === '') input.dataset.prefill = '1';
+        row.querySelector('input').value = value(w.office[f.key]);
         grid.appendChild(row);
       });
       card.appendChild(grid);
@@ -587,28 +584,17 @@
       $('[data-svc-total="' + si + '"]').innerHTML = s.logged || any ? inputs.reduce((t, i) => t + num(i), 0) : '&ndash;';
     });
 
-    // Office boxes still showing the ushers' count follow it as it changes.
+    // Added-up boxes first, then each card's total, which may include them.
+    const val = {};
+    $$('input[data-key]').forEach((i) => { val[i.dataset.key] = i.value === '' ? null : num(i); });
+    const sum = (list) => list.some((n) => n !== null) ? list.reduce((t, n) => t + (n || 0), 0) : null;
+    w.groups.forEach((g) => g.fields.forEach((f) => {
+      if (!f.sumOf) return;
+      val[f.key] = sum(w.groups.find((x) => x.title === f.sumOf).fields.map((x) => val[x.key]));
+      $('output[data-sum="' + CSS.escape(f.key) + '"]').textContent = val[f.key] === null ? '–' : val[f.key];
+    }));
     w.groups.forEach((g, gi) => {
-      const si = w.services.findIndex((s) => s.service === g.service);
-      g.fields.forEach((f) => {
-        const input = $('input[data-key="' + CSS.escape(f.key) + '"]');
-        const label = input.closest('.num').querySelector('label');
-        const tag = label.querySelector('.tag');
-        if (tag) tag.remove();
-        input.classList.remove('prefilled');
-        if (!f.from || input.dataset.prefill !== '1') return;
-        const parts = si < 0 ? [] : f.from.map((a) => $('input[data-svc="' + si + '"][data-area="' + CSS.escape(a) + '"]'))
-          .filter((i) => i && i.value !== '');
-        input.value = parts.length ? parts.reduce((t, i) => t + num(i), 0) : '';
-        if (input.value !== '') {
-          input.classList.add('prefilled');
-          label.insertAdjacentHTML('beforeend', '<span class="tag">ushers</span>');
-        }
-      });
-      if (g.total) {
-        $('[data-group-total="' + gi + '"]').textContent =
-          g.fields.reduce((t, f) => t + num($('input[data-key="' + CSS.escape(f.key) + '"]')), 0);
-      }
+      if (g.total) $('[data-group-total="' + gi + '"]').textContent = sum(g.fields.map((f) => val[f.key])) || 0;
     });
   }
 
@@ -778,7 +764,6 @@
     if (t.matches('.num input')) {
       const clean = t.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 4);
       if (clean !== t.value) t.value = clean;
-      if (t.dataset.key) t.dataset.prefill = '';
       if (t.dataset.svc) t.closest('details').dataset.changed = '1';
       recalc();
     }

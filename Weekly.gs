@@ -6,9 +6,6 @@
  * tab: what the ushers counted at each service and what the office entered on
  * the office page (Office.gs), each beside the same week last year. setup
  * schedules it. The Weekly tab's Weekly Report column shows what happened.
- *
- * Children's classes the office left blank show the ushers' count for those
- * rooms instead, marked with an asterisk, as the office page does.
  */
 
 const WEEKLY_HOUR = 7;   // Saturday, in the script's time zone
@@ -134,7 +131,6 @@ function weeklyData_(sunday, tz) {
     services: services,
     office: officeValues_(sunday, tz),
     lastOffice: officeValues_(before, tz),
-    usher: usherValues_(week),
   };
 }
 
@@ -147,29 +143,6 @@ function historyTotal_(service, sunday, tz) {
     return ymd_(e.date, tz) >= start && ymd_(e.date, tz) <= end;
   })[0];
   return hit ? hit.total : null;
-}
-
-/** {column: number} for the office boxes that start from the ushers' count, where the ushers counted. */
-function usherValues_(services) {
-  const out = {};
-  OFFICE_GROUPS.forEach(function (g) {
-    const s = services.filter(function (e) { return e.logged && e.service === g.service; })[0];
-    if (!s) return;
-    g.fields.forEach(function (f) {
-      if (!f.from) return;
-      const parts = f.from.map(function (a) { return s.counts[a]; }).filter(function (n) { return typeof n === 'number'; });
-      if (parts.length) out[f.key] = parts.reduce(function (t, n) { return t + n; }, 0);
-    });
-  });
-  return out;
-}
-
-/** The value to show for an office column: {value, usher} (usher: taken from the ushers' count). */
-function weeklyValue_(d, key) {
-  const v = d.office.values[key];
-  if (v !== '' && v !== undefined && v !== null) return { value: v, usher: false };
-  if (d.usher[key] !== undefined) return { value: d.usher[key], usher: true };
-  return { value: '', usher: false };
 }
 
 // ---- Email HTML ---------------------------------------------------------------
@@ -198,7 +171,7 @@ function wVersus_(n, last) {
   return (typeof n === 'number' ? wSigned_(n - last) + ' ' : '') + 'vs. last year (' + last + ')';
 }
 
-/** Label | this week | last year | change. rows: [{label, n, last, mark, strong}]. */
+/** Label | this week | last year | change. rows: [{label, n, last, strong}]. */
 function wCompare_(rows) {
   const T = THEME;
   const cell = function (html, st) {
@@ -211,7 +184,7 @@ function wCompare_(rows) {
   return eTable_(head + rows.map(function (r) {
     const st = r.strong ? 'background:' + T.soft + ';font-weight:600;' : '';
     return '<tr>' + cell(esc_(r.label), st) +
-      cell(wCell_(r.n) + (r.mark ? '<span style="color:' + T.muted + '">*</span>' : ''), st + 'text-align:right;white-space:nowrap') +
+      cell(wCell_(r.n), st + 'text-align:right;white-space:nowrap') +
       cell(wCell_(r.last), st + 'text-align:right;color:' + T.muted) +
       cell(wChange_(r.n, r.last), st + 'text-align:right;width:40px') + '</tr>';
   }).join(''));
@@ -220,23 +193,22 @@ function wCompare_(rows) {
 /** A group's rows for wCompare_, with its total (when it has one) last. */
 function wGroupRows_(d, g) {
   const rows = g.fields.map(function (f) {
-    const v = weeklyValue_(d, f.key);
-    return { label: f.label, n: v.value, last: d.lastOffice.values[f.key], mark: v.usher };
+    return { label: f.label, n: d.office.values[f.key], last: d.lastOffice.values[f.key] };
   });
   if (g.total) {
-    const sum = function (list) {
-      const nums = list.filter(function (n) { return typeof n === 'number'; });
-      return nums.length ? nums.reduce(function (t, n) { return t + n; }, 0) : '';
+    // The total as saved, or added up here when the old sheet left it blank.
+    const total = function (values, list) {
+      const v = values[g.total];
+      return v === undefined || v === '' ? sum_(list) : v;
     };
-    const n = sum(rows.map(function (r) { return r.n; }));
-    const last = d.lastOffice.values[g.total];
-    rows.push({ label: 'Total', n: n, last: last !== undefined ? last : sum(rows.map(function (r) { return r.last; })), strong: true });
+    rows.push({
+      label: 'Total',
+      n: total(d.office.values, rows.map(function (r) { return r.n; })),
+      last: total(d.lastOffice.values, rows.map(function (r) { return r.last; })),
+      strong: true,
+    });
   }
   return rows;
-}
-
-function weeklyGroup_(title) {
-  return OFFICE_GROUPS.filter(function (g) { return g.title === title; })[0];
 }
 
 /** The weekly report, as the email's HTML body. */
@@ -245,7 +217,7 @@ function weeklyHtml_(d) {
   const tz = d.tz;
   const out = [];
   const end = new Date(d.sunday.getTime() + 6 * DAY_MS);
-  const ss = wGroupRows_(d, weeklyGroup_('Sunday School'));
+  const ss = wGroupRows_(d, officeGroup_('Sunday School'));
   const ssTotal = ss[ss.length - 1];
 
   // Quick boxes: each service, then Sunday School, two across
@@ -279,25 +251,11 @@ function weeklyHtml_(d) {
   });
   out.push(eCard_(eHeading_('Services') + eCaption_('What the ushers counted, by area of the building.') + eTable_(head + rows.join(''))));
 
-  // Sunday School and the ministries, side by side
-  const classes = weeklyGroup_('Sunday School Classes');
-  const ministries = weeklyGroup_('Ministries');
+  // Sunday School and the ministries beside the Sunday School classes
   out.push(eCard_(eRow_(
-    eSlot_(eSubhead_('Sunday School', 4) + wCompare_(ss) + eSubhead_('Classes', 14) + wCompare_(wGroupRows_(d, classes)), 'margin-bottom:12px') +
-    eSlot_(eSubhead_('Ministries', 4) + wCompare_(wGroupRows_(d, ministries)), 'margin-bottom:12px'))));
-
-  // Children's classes by service
-  const kids = OFFICE_GROUPS.filter(function (g) { return g.service; });
-  let marked = false;
-  const kidSlots = kids.map(function (g) {
-    const r = wGroupRows_(d, g);
-    if (r.some(function (x) { return x.mark; })) marked = true;
-    return eSubhead_(g.title, 4) + wCompare_(r);
-  });
-  const left = kidSlots.slice(0, -1).join('<div style="height:10px"></div>');
-  out.push(eCard_(eHeading_('Children') +
-    (marked ? eCaption_('* From the ushers\' count for those rooms. The office hasn\'t entered its own number.') : '') +
-    eRow_(eSlot_(left, 'margin-bottom:12px') + eSlot_(kidSlots[kidSlots.length - 1], 'margin-bottom:12px'))));
+    eSlot_(eSubhead_('Sunday School', 4) + wCompare_(ss) +
+      eSubhead_('Ministries', 14) + wCompare_(wGroupRows_(d, officeGroup_('Ministries'))), 'margin-bottom:12px') +
+    eSlot_(eSubhead_('Sunday School classes', 4) + wCompare_(wGroupRows_(d, officeGroup_('Sunday School Classes'))), 'margin-bottom:12px'))));
 
   // Notes from the office and the ushers
   const notes = [];
@@ -337,10 +295,9 @@ function weeklyText_(d) {
   OFFICE_GROUPS.forEach(function (g) {
     lines.push('', g.title);
     wGroupRows_(d, g).forEach(function (r) {
-      lines.push('  ' + r.label + ': ' + show(r.n) + (r.mark ? '*' : '') + (r.last !== undefined && r.last !== '' ? ' (last year ' + r.last + ')' : ''));
+      lines.push('  ' + r.label + ': ' + show(r.n) + (r.last !== undefined && r.last !== '' ? ' (last year ' + r.last + ')' : ''));
     });
   });
-  if (Object.keys(d.usher).length) lines.push('', '* From the ushers\' count for those rooms.');
   if (d.office.notes) lines.push('', 'Office notes: ' + d.office.notes);
   d.services.forEach(function (s) { if (s.notes) lines.push('', s.name + ' notes: ' + s.notes); });
   lines.push('', weeklyFooter_(d));
