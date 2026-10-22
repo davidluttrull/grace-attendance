@@ -248,12 +248,16 @@ function compareYears_(series, date, total) {
     if (!e.current && gap <= 3 * DAY && (!lastYear || gap < Math.abs(lastYear.date.getTime() - target))) lastYear = e;
   });
   const y = date.getFullYear();
-  const sameDayLastYear = new Date(y - 1, date.getMonth(), date.getDate(), 23);
+  // Last year's average runs through the end of the matching week (52 weeks
+  // back), not the same calendar date, which falls a day earlier in the week.
+  const sameWeekLastYear = new Date(target);
+  sameWeekLastYear.setDate(sameWeekLastYear.getDate() + 6 - sameWeekLastYear.getDay());
+  sameWeekLastYear.setHours(23, 59, 59);
   const avg = function (list) {
     return list.length ? Math.round(list.reduce(function (t, e) { return t + e.total; }, 0) / list.length) : null;
   };
   const thisYear = series.filter(function (e) { return e.date.getFullYear() === y && e.date <= date; });
-  const before = series.filter(function (e) { return e.date.getFullYear() === y - 1 && e.date <= sameDayLastYear; });
+  const before = series.filter(function (e) { return e.date.getFullYear() === y - 1 && e.date <= sameWeekLastYear; });
   return {
     year: y,
     lastYear: lastYear ? { date: lastYear.date, total: lastYear.total, change: total - lastYear.total } : null,
