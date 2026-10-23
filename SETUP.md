@@ -27,7 +27,10 @@ The ushers' page sends its numbers to the script without any Google sign-in. Ush
 
 1. Click **Code.gs** in the Files list. The Run button and the function dropdown appear only while a `.gs` file is open. In the dropdown next to **Debug** (it probably shows `doGet`), pick **setup**, then click **Run**.
 2. Google will ask for permission. Click **Review permissions** and choose your account.
-3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**. The list of permissions includes Sheets and sending email: the script needs email to send the report.
+3. You'll get a warning that says "Google hasn't verified this app". That's expected for a script you wrote yourself. Click **Advanced → Go to Usher Attendance (unsafe) → Allow**. The list of permissions includes these:
+   - **See, edit, create, and delete all your Google Sheets spreadsheets.** The script saves to this Sheet, and the history import reads the old attendance sheet.
+   - **Send email as you**, for the reports.
+   - **Allow this application to run when you are not present**, so the report can go out after an usher submits and the weekly report can go out on Saturday.
 4. Switch back to the Sheet. You should see four tabs:
    - **Attendance**, with a dark green header row
    - **Summary**
@@ -77,13 +80,16 @@ Send the ushers the page's address, <https://gracetoanderson.com/ushercount>, an
 The office fills in the week's other numbers at <https://davidluttrull.github.io/grace-attendance/office/>. It's meant for a computer but works on a phone too. If you'd like a shorter address, have the church site forward something like `gracetoanderson.com/officecount` there, the way `ushercount` forwards to the ushers' page.
 
 - The first time, it asks for a name and the **office code**, and that computer remembers both. The usher code doesn't open it: the office page can read and change everything the ushers logged.
-- It opens on the current week, Sunday through Saturday. The arrows move a week at a time, and **Go to** jumps to the week containing any date. The address ends in the week's Sunday (`…/office/#2026-10-18`), so a bookmark goes back to that week.
+- A wrong office code is cleared and the page asks again. After 20 wrong office codes within 10 minutes, the script stops accepting the office code for 10 minutes. This count is separate from the usher code's, so a locked-out office page doesn't stop the ushers.
+- To sign in as someone else, click **Not (name)? Change name or code** at the bottom of the page.
+- It opens on the current week, Sunday through Saturday. The arrows move a week at a time, and **Go to** jumps to the week containing any date. **This week** comes back to the current week. The right arrow stops at the current week. The address ends in the week's Sunday (`…/office/#2026-10-18`), so a bookmark goes back to that week.
 - **Usher Counts** lists the week's services: Sunday AM, Sunday PM, Wednesday, and any others the ushers logged. Open one to see every area. Change a number to correct it, or fill in a service the ushers missed. Saving updates or adds that service's row on the Attendance tab and notes who changed it in the **Office Edit** column. It doesn't email the per-service report.
+- A service the office fills in gets a new row on the Attendance tab with the office person's name under **Submitted By**, "Entered by" in **Office Edit**, and *Not emailed: entered on the office page* under **Report Emailed**. To send its report anyway, use the **Attendance** menu (see "Emailed reports").
 - Below that are the numbers the ushers don't count: Sunday School adults and teens, the five Sunday School classes (Nursery, K4-K5, 1st-2nd, 3rd-4th, 5th-6th), Keenagers and AWANA. Children's attendance during services isn't here, because the ushers count it.
 - Sunday School **Children** isn't typed in. It's the total of the classes, and the Sunday School **Total** is adults plus teens plus children. Both update as the boxes change.
 - On the Weekly tab, Keenagers and AWANA are saved under the History tabs' column names, **Keenagers/HGM** and **K4T/AWANA**, so the weekly report can find last year's numbers.
 - **Save** puts the week on the **Weekly** tab, one row per week. Save as often as you like through the week: each save replaces that week's row. Saving doesn't email anyone.
-- For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied, because the boxes only take numbers. The History tab keeps them.
+- For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied, because the boxes only take numbers, and saving the week clears them from the History tab as well. If a word like that matters, type it in **Notes** before you save.
 - If you move to another week or close the page with unsaved changes, it asks first.
 
 ## Changing the usher code or the office code
@@ -96,7 +102,8 @@ The office code is **OFFICE_CODE** in the same list, and it changes the same way
 
 About a minute after each submission, the script emails the report to everyone on the **Report Emails** tab. The report is the email itself, not an attachment, laid out like the ushers' page: the dark green header with the logo, then cards. It has the total and each section in boxes at the top, where everyone was, the auditorium as a floor plan, the other areas as bars, the full count, the last few services of the same kind, and the bulletins, door ushers and notes. On a computer some cards show two columns side by side; on a phone they stack. Email apps that can't show the layout get a plain-text version with the same numbers.
 
-- The **Report Emailed** column at the right end of the Attendance tab shows what happened to each row: *Pending*, *Sent* with the time and number of recipients, *Not sent* if the list is empty, or *Failed* with the reason.
+- The **Report Emailed** column at the right end of the Attendance tab shows what happened to each row: *Pending*, *Sent* with the time and number of recipients, *Not sent* if the list is empty, *Failed* with the reason, or *Not emailed: entered on the office page* for a service the office filled in.
+- To send the report, the script sets itself a one-time timer for `sendPendingReports`. You may see it for a moment under **Triggers** in Apps Script. Leave it alone; it removes itself when it runs.
 - If an usher replaces a service that was already logged, staff get a new report with "Updated" in the subject.
 - To stop the emails, clear the addresses on the Report Emails tab.
 
@@ -104,14 +111,18 @@ The Sheet has an **Attendance** menu (it appears a few seconds after the Sheet o
 
 - **Email report for selected row** sends that row's report to everyone on the list again. Use it after a *Failed* row, or to resend an old service.
 - **Send me a test report for selected row** sends it only to you, so you can check how it looks without emailing the staff.
+- **Email weekly report** and **Send me a test weekly report** are covered under "The weekly report" below.
+- **Import history from the old attendance sheet** and **Fill in History tabs from Attendance and Weekly** are covered under "History from the old attendance sheet" below.
 
 ### The weekly report
 
 Every Saturday at about 7 AM, the script emails the week just past to the same **Report Emails** list. It covers each service's count by section, then Sunday School, its classes, Keenagers and AWANA, each beside the same week last year. Office and usher notes come last.
 
-- The **Weekly Report** column on the Weekly tab shows when each week's report went out, or why it didn't.
-- The menu has **Email weekly report** and **Send me a test weekly report**. Click a row on the Weekly tab first to send that week; otherwise they send the latest week.
-- Saturday at 7 AM is set in `Weekly.gs` (`WEEKLY_HOUR`), in the script's time zone. To change the day or hour, open **Triggers** (the alarm clock on the left of Apps Script), delete the `sendWeeklyReport` trigger, edit `Weekly.gs`, and run setup again.
+- The **Weekly Report** column on the Weekly tab shows when each week's report went out, or why it didn't. If the office never saved a week, the report still goes out, and that week gets a row on the Weekly tab with only the date and this column filled in. The office page still treats that week as not saved.
+- The menu has **Email weekly report** and **Send me a test weekly report**. Click a row on the Weekly tab first to send that week. Otherwise they send the week that started on the most recent Sunday, so early in the week that report is mostly empty.
+- Only **Email weekly report** and the Saturday email write to the Weekly Report column. The test doesn't.
+- The hour is `WEEKLY_HOUR` near the top of `Weekly.gs`, in the script's time zone. Google runs it some time within that hour. The day is the word `SATURDAY` a few lines below it, in `ensureWeeklyTrigger_`. To change either, open **Triggers** (the alarm clock on the left of Apps Script), delete the `sendWeeklyReport` trigger, edit `Weekly.gs`, and run setup again. The email's footer says "every Saturday morning", so change that wording in `Weekly.gs` too if you move the day.
+- If the Saturday email stops coming, open **Triggers** and check that `sendWeeklyReport` is listed. If it isn't, run setup again.
 
 Reports used to be sent as a PDF, made by way of a temporary Google Doc. They aren't anymore, so the script no longer needs the Drive API service. If it's listed under **Services** in Apps Script, you can leave it or remove it.
 
@@ -121,7 +132,8 @@ Attendance from July 2006 until the ushers' page was kept by hand in the **Atten
 
 - Each tab has the old sheet's columns: Date, Bus, Keenagers/HGM, K4T/AWANA, Sunday AM, Auditorium, Kidstown, Sunday PM, Wednesday, the four Sunday School columns, and Notes. From 2024, the Children's Ministries numbers are added on the right, on the row with the same date.
 - Numbers stay numbers, and words like "No Service" or "Snow Day" stay as they were typed. A few dates in the old sheet had the wrong year (like "2/4/06" in the 2007 section); they're filed under the year they were listed in, with a note saying what was typed. Rows with nothing in them, and the monthly averages and summary tables, aren't copied.
-- To import, open Apps Script, click **History.gs** in the Files list, pick **importHistory** in the dropdown, and click **Run**. It takes a minute and shows how many rows each year got. You can also run it from the Sheet's **Attendance** menu.
+- The import reads the old sheet directly, so the Google account that runs it needs at least view access to the **Attendance Report** spreadsheet. Which spreadsheet it reads is set near the top of `History.gs` (`OLD_SHEET_ID`).
+- To import, open Apps Script, click **History.gs** in the Files list, pick **importHistory** in the dropdown, and click **Run**. It takes a minute and shows how many rows each year got. You can also run it from the Sheet's **Attendance** menu (**Import history from the old attendance sheet**).
 - Nothing is left out silently. A **History Import Log** tab lists every row of the old sheet that wasn't copied, and any cells cut off the right of a copied row, with the reason and what was in the row. Children's rows whose date has no match in the main tab are listed too, because they're usually a typo. Look the log over after an import.
 - Running it again rebuilds the History tabs and the log from the old sheet, then fills the new pages' weeks back in (see below). To correct a past number, fix it in the old sheet and import again, or edit the History tab and don't import again.
 
@@ -152,7 +164,8 @@ The emailed report reads the History tabs for **Recent services** and **Compared
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
 - **Weekly:** the office page's numbers, one row per week (the Sunday's date), with the same column names as the History tabs, who saved it last, and when the weekly report went out.
 - **Report Emails:** the addresses that get both reports.
-- **History 2026** back to **History 2006:** one tab per year, newest first. The old sheet's numbers, and from October 2026 the weeks from the ushers' page and the office page (see above).
+- **History 2026** back to **History 2006:** one tab per year, newest first, after the other tabs. The old sheet's numbers, and from October 2026 the weeks from the ushers' page and the office page (see above).
+- **History Import Log:** the last tab. Every row of the old sheet the import didn't copy, and why. Each import replaces it.
 
 You can sort, filter, chart, or add your own columns to the right. The script finds its columns by their header names. Leave the **Attendance** and **Weekly** tab names and the existing header names unchanged.
 
@@ -173,3 +186,10 @@ Room names live near the top of `Code.gs`, in `SECTIONS`. To add, rename, or rem
 The page itself doesn't need to change, because it reads the room list from the script. A phone that has the page open shows the new list a moment after the page loads. If someone submits from a page that still shows a removed room, the script refuses the numbers and asks them to reopen the page, so nothing is lost without a warning.
 
 A new area gets its own column at the right end of the Attendance tab. Removing an area from the page leaves its old column in the Sheet, so past numbers aren't lost.
+
+A few rooms are also named in other files, so renaming one of them takes an extra edit:
+
+- The History tabs' children's columns look for the three nurseries, **Pre-Primary (4-5 yrs)** and **Junior Church (1st-3rd)** by name, in `historySources_` in `History.gs`. If you rename one, change it there too, or those History columns stop filling in.
+- The auditorium floor plan in the emailed report looks for **South Wing**, **South Main**, **Platform**, **North Wing** and **North Main**. If they change, the report shows bars instead of the floor plan.
+
+The office page's boxes are in `OFFICE_GROUPS` near the top of `Office.gs`. Each box's `key` is a History tab column name, so change the `label` (what people see) and leave the `key` alone. Leave the card titles (`Sunday School`, `Sunday School Classes`, `Ministries`) alone as well, because the weekly report finds the cards by those titles.
