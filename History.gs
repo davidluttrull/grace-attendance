@@ -287,7 +287,8 @@ function historyCounts_(service, years) {
 // totals and the children's rooms) and the Weekly tab (Sunday School,
 // Keenagers, AWANA and the office's notes). A column whose source hasn't been
 // entered yet (a service the ushers didn't log, a week the office hasn't
-// saved) keeps whatever the old sheet had there. Bus, Kidstown, Wed 4th-6th
+// saved), or one the office left blank, keeps whatever the History tab had
+// there. Bus, Kidstown, Wed 4th-6th
 // and Wed Teens have no source any more and are left alone.
 
 /** Where each History column comes from: an Attendance column or areas of a service, or a Weekly tab column. */
@@ -378,7 +379,9 @@ function syncHistory_(weeks) {
         if (src.weekly) {
           if (!w.weekly || !wcols[src.weekly]) return;
           const v = w.weekly[wcols[src.weekly] - 1];
-          if (h === 'Notes' && v === '') return;   // keep the old sheet's note
+          // A blank office box keeps what's there (the old sheet's note, or words
+          // like "No Awana" that the number boxes can't show).
+          if (v === '' || v === null) return;
           row[c] = v;
         } else {
           const r = w.services[src.service];

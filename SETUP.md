@@ -89,7 +89,7 @@ The office fills in the week's other numbers at <https://davidluttrull.github.io
 - Sunday School **Children** isn't typed in. It's the total of the classes, and the Sunday School **Total** is adults plus teens plus children. Both update as the boxes change.
 - On the Weekly tab, Keenagers and AWANA are saved under the History tabs' column names, **Keenagers/HGM** and **K4T/AWANA**, so the weekly report can find last year's numbers.
 - **Save** puts the week on the **Weekly** tab, one row per week. Save as often as you like through the week: each save replaces that week's row. Saving doesn't email anyone.
-- For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied, because the boxes only take numbers, and saving the week clears them from the History tab as well. If a word like that matters, type it in **Notes** before you save.
+- For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied to the Weekly tab, because the boxes only take numbers, but they stay on the History tab: a box left blank never changes it.
 - If you move to another week or close the page with unsaved changes, it asks first.
 
 ## Changing the usher code or the office code
@@ -152,7 +152,7 @@ The History tabs stay the full record, one row per week, after the old sheet. Ea
 | Bus, Kidstown, Wed 4th-6th, Wed Teens | Nothing any more. They stay blank, or keep what the old sheet had. |
 
 - A week goes on the History row dated in that week, so a Sunday count an usher logged on Tuesday still lands on Sunday's row.
-- Only columns that have something to fill them change. If the ushers haven't logged a service or the office hasn't saved the week, those columns keep whatever was there. A blank office note doesn't erase the old sheet's note.
+- Only columns that have something to fill them change. If the ushers haven't logged a service, the office hasn't saved the week, or the office left a box blank, those columns keep whatever was there. To remove a wrong number from a History row, type 0 in that box on the office page.
 - Edits typed straight into a History tab stay until that week is filled in again, which happens the next time an usher submits that week or the office saves it. To change a number for good, change it on the Attendance or Weekly tab (or on the office page).
 - **Attendance → Fill in History tabs from Attendance and Weekly** fills in every week at once. Use it after editing the Attendance or Weekly tab by hand.
 
