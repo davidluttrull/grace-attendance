@@ -277,7 +277,7 @@ function serviceName_(data) {
 // side by side on a computer, stacked and centered on a phone.
 
 const FONT = "font-family:Poppins,'Helvetica Neue',Helvetica,Arial,sans-serif;";
-const DASH = '<span style="color:#AAAAAA">—</span>';
+const DASH = '<span style="color:#AAAAAA">\u2014</span>';
 
 function esc_(s) {
   return String(s === null || s === undefined ? '' : s)
@@ -379,20 +379,26 @@ function eFloorPlan_(section) {
   const names = ['North Wing', 'North Main', 'South Main', 'South Wing', 'Platform'];
   if (!names.every(function (k) { return k in n; })) return '';
   const total = section.subtotal;
-  const block = function (name, bg) {
+  const block = function (name, bg, rows) {
     const v = n[name];
-    return '<td width="25%" style="' + FONT + 'padding:12px 4px;background:' + bg + ';text-align:center;border:3px solid #FFFFFF;border-radius:10px">' +
-      '<p style="margin:0;font-size:24px;line-height:1.1;font-weight:700;color:#FFFFFF">' + (v === null ? '—' : v) + '</p>' +
+    return '<td width="25%"' + (rows ? ' rowspan="' + rows + '"' : '') + ' style="' + FONT + 'padding:12px 4px;background:' + bg +
+      ';text-align:center;vertical-align:top;border:3px solid #FFFFFF;border-radius:10px">' +
+      '<p style="margin:0;font-size:24px;line-height:1.1;font-weight:700;color:#FFFFFF">' + (v === null ? '\u2014' : v) + '</p>' +
       '<p style="margin:2px 0 0;font-size:12px;line-height:1.2;color:#FFFFFF">' + esc_(name) + '</p>' +
       '<p style="margin:2px 0 0;font-size:11px;color:#CFE3C0">' + (v === null ? 'not reported' : pct_(v, total)) + '</p></td>';
   };
   const plat = n['Platform'];
+  // Laid out as the auditorium is seen from the back: South on the left, North
+  // on the right. The two Main sections span a second row, so they reach lower
+  // than the Wings, as the larger seating sections do.
+  const spacer = '<td width="25%" style="height:26px;font-size:0;line-height:0">&nbsp;</td>';
   return eTable_('<tr><td width="20%"></td><td width="60%" style="' + FONT + 'padding:6px;background:' + T.soft + ';border:1px solid ' + T.brand +
       ';border-radius:10px;text-align:center"><span style="font-size:11px;letter-spacing:.6px;color:' + T.muted + '">PLATFORM</span> ' +
-      '<b style="font-size:16px;color:' + T.ink + '">' + (plat === null ? '—' : plat) + '</b>' +
+      '<b style="font-size:16px;color:' + T.ink + '">' + (plat === null ? '\u2014' : plat) + '</b>' +
       (plat === null ? '' : ' <span style="font-size:11px;color:' + T.muted + '">' + pct_(plat, total) + '</span>') + '</td><td width="20%"></td></tr>',
       'border-collapse:separate') +
-    eTable_('<tr>' + block('North Wing', T.mid) + block('North Main', T.deep) + block('South Main', T.deep) + block('South Wing', T.mid) + '</tr>',
+    eTable_('<tr>' + block('South Wing', T.mid) + block('South Main', T.deep, 2) + block('North Main', T.deep, 2) + block('North Wing', T.mid) + '</tr>' +
+      '<tr>' + spacer + spacer + '</tr>',
       'margin-top:6px;border-collapse:separate;table-layout:fixed');
 }
 
@@ -433,17 +439,17 @@ function reportHtml_(d, updated) {
     : 'All areas';
   // Up green, down amber, as in the offering report.
   const signedHtml = function (n) {
-    return '<span style="color:' + (n < 0 ? '#8A5200' : '#3D7A28') + ';font-weight:600">' + (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n) + '</span>';
+    return '<span style="color:' + (n < 0 ? '#8A5200' : '#3D7A28') + ';font-weight:600">' + (n > 0 ? '+' : n < 0 ? '\u2212' : '\u00B1') + Math.abs(n) + '</span>';
   };
   const cmp = d.compare || {};
   const ly = cmp.lastYear;
   const out = [];
-  const preview = d.total + ' at ' + svc + ' · ' + d.sections.map(function (s) { return s.title + ' ' + s.subtotal; }).join(' · ');
+  const preview = d.total + ' at ' + svc + ' \u00B7 ' + d.sections.map(function (s) { return s.title + ' ' + s.subtotal; }).join(' \u00B7 ');
 
 
   // Quick boxes: the total, then one per section, two across
   const boxes = [eBox_('Total attendance', String(d.total), esc_(changeNote) +
-    (ly ? '<br>' + (ly.change > 0 ? '+' : ly.change < 0 ? '−' : '±') + Math.abs(ly.change) + ' vs. last year (' + ly.total + ')' : ''), true)].concat(d.sections.map(function (s) {
+    (ly ? '<br>' + (ly.change > 0 ? '+' : ly.change < 0 ? '\u2212' : '\u00B1') + Math.abs(ly.change) + ' vs. last year (' + ly.total + ')' : ''), true)].concat(d.sections.map(function (s) {
     return eBox_(s.title, String(s.subtotal), pct_(s.subtotal, d.total) ? pct_(s.subtotal, d.total) + ' of total' : '&nbsp;');
   }));
   let quick = '';
@@ -466,7 +472,7 @@ function reportHtml_(d, updated) {
           ';text-align:center;font-size:13px;font-weight:600">' + (share >= 8 ? s.subtotal : '&nbsp;') + '</td>');
       }
       legend.push('<span style="white-space:nowrap;margin-right:14px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' +
-        color.bg + ';margin-right:5px"></span><b>' + esc_(s.title) + '</b> ' + s.subtotal + ' · ' + pct_(s.subtotal, d.total) + '</span> ');
+        color.bg + ';margin-right:5px"></span><b>' + esc_(s.title) + '</b> ' + s.subtotal + ' \u00B7 ' + pct_(s.subtotal, d.total) + '</span> ');
     });
     where = eHeading_('Where everyone was', 18) + eCaption_('Share of the ' + d.total + ' people counted, by area of the building.') +
       eTable_('<tr>' + cells.join('') + '</tr>', 'border-radius:8px;overflow:hidden;border-collapse:separate') +
@@ -560,7 +566,7 @@ function reportHtml_(d, updated) {
   const by = d.submittedBy ? 'Counted by ' + d.submittedBy : 'Counted';
   const at = d.submittedAt instanceof Date ? ' on ' + fmtDate_(d.submittedAt, d.tz, 'M/d/yyyy') + ' at ' + fmtDate_(d.submittedAt, d.tz, 'h:mm a') : '';
   const left = eSubhead_('Bulletins left over', 4) +
-    '<p style="' + FONT + 'margin:0;font-size:30px;font-weight:700;color:' + T.ink + '">' + (d.bulletins === null ? '—' : d.bulletins) + '</p>' +
+    '<p style="' + FONT + 'margin:0;font-size:30px;font-weight:700;color:' + T.ink + '">' + (d.bulletins === null ? '\u2014' : d.bulletins) + '</p>' +
     '<p style="' + FONT + 'margin:10px 0 0;font-size:13px;color:' + T.muted + '">' + esc_(by + at) + '.</p>' +
     (d.notes ? eSubhead_('Notes', 14) + '<p style="' + FONT + 'margin:0;font-size:14px;line-height:1.45;color:' + T.ink + '">' + esc_(d.notes) + '</p>' : '');
   out.push(eCard_(eHeading_('Service details') + eRow_(eSlot_(left, 'margin-bottom:12px') + eSlot_(eSubhead_('Door ushers', 4) + doors, 'margin-bottom:12px'))));
@@ -578,7 +584,7 @@ function emailText_(d, updated) {
     fmtDate_(d.date, d.tz, 'EEEE, MMMM d') + ': ' + d.total, ''];
   d.sections.forEach(function (s) {
     lines.push(s.title + ': ' + s.subtotal);
-    s.areas.forEach(function (a) { lines.push('  ' + a.name + ': ' + (a.n === null ? '—' : a.n)); });
+    s.areas.forEach(function (a) { lines.push('  ' + a.name + ': ' + (a.n === null ? '\u2014' : a.n)); });
   });
   const c = d.compare;
   if (c && c.lastYear) lines.push('', 'Same week last year: ' + c.lastYear.total + ' (' + fmtDate_(c.lastYear.date, d.tz, 'MMM d, yyyy') + '), ' +
