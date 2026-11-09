@@ -436,6 +436,31 @@
   }
 
   let CONFIG;
+  let shown = null;   // the room list on the form now
+  let typed = {};     // numbers typed for rooms, kept when the service changes and changes back
+
+  /** The rooms a service counts: its own list if it has one, otherwise the usual list. */
+  function sectionsFor(name) {
+    return (CONFIG.serviceSections || {})[name] || CONFIG.sections;
+  }
+
+  function buildSections(list) {
+    shown = list;
+    const sections = $('#sections');
+    sections.innerHTML = '';
+    list.forEach((section, si) => {
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = '<div class="card-head"><h2>' + esc(section.title) + '</h2>' +
+        '<span class="sub" data-sub="' + si + '">0</span></div>';
+      section.areas.forEach((area) => {
+        const row = stepRow(area, { area: area, section: si });
+        row.querySelector('input').value = typed[area] || '';
+        card.appendChild(row);
+      });
+      sections.appendChild(card);
+    });
+  }
 
   function build() {
     ['#services', '#sections', '#bulletinRow', '#doors'].forEach((sel) => { $(sel).innerHTML = ''; });
@@ -451,15 +476,8 @@
       chips.appendChild(b);
     });
 
-    const sections = $('#sections');
-    CONFIG.sections.forEach((section, si) => {
-      const card = document.createElement('section');
-      card.className = 'card';
-      card.innerHTML = '<div class="card-head"><h2>' + esc(section.title) + '</h2>' +
-        '<span class="sub" data-sub="' + si + '">0</span></div>';
-      section.areas.forEach((area) => card.appendChild(stepRow(area, { area: area, section: si })));
-      sections.appendChild(card);
-    });
+    // The room cards are built by setService, for the service picked.
+    shown = null;
 
     $('#bulletinRow').appendChild(stepRow('Bulletins Left', { bulletins: '1' }));
     $('#bulletinRow .row').style.borderTop = '0';
@@ -494,6 +512,12 @@
     service = name;
     $$('.chip').forEach((c) => c.setAttribute('aria-checked', String(c.dataset.service === name)));
     $('#otherWrap').hidden = name !== 'Other';
+    const list = sectionsFor(name);
+    if (list !== shown) {
+      if (shown) $$('input[data-area]').forEach((i) => { typed[i.dataset.area] = i.value; });
+      buildSections(list);
+      recalc();
+    }
   }
 
   function num(input) {
@@ -502,7 +526,7 @@
 
   function recalc() {
     let total = 0;
-    CONFIG.sections.forEach((_, si) => {
+    shown.forEach((_, si) => {
       const sub = $$('input[data-section="' + si + '"]').reduce((s, i) => s + num(i), 0);
       $('[data-sub="' + si + '"]').textContent = sub;
       total += sub;
@@ -530,6 +554,8 @@
 
   function apply(data) {
     $('#date').value = data.date || today();
+    typed = Object.assign({}, data.counts || {});
+    shown = null;
     setService(data.service || '');
     $('#otherName').value = data.otherName || '';
     $$('input[data-area]').forEach((i) => { i.value = (data.counts || {})[i.dataset.area] || ''; });

@@ -505,7 +505,7 @@
         '<span class="svc-total" data-svc-total="' + si + '">' + (s.logged ? s.total : '&ndash;') + '</span></summary>';
       const body = document.createElement('div');
       body.className = 'svc-body';
-      w.sections.forEach((sec, ki) => {
+      s.sections.forEach((sec, ki) => {
         const h = document.createElement('h3');
         h.innerHTML = esc(sec.title) + '<span class="sub" data-sec="' + si + '-' + ki + '"></span>';
         body.appendChild(h);
@@ -576,7 +576,7 @@
     const w = WEEK;
     w.services.forEach((s, si) => {
       const inputs = $$('input[data-svc="' + si + '"]');
-      w.sections.forEach((_, ki) => {
+      s.sections.forEach((_, ki) => {
         const sub = inputs.filter((i) => i.dataset.sec === String(ki)).reduce((t, i) => t + num(i), 0);
         $('[data-sec="' + si + '-' + ki + '"]').textContent = sub;
       });

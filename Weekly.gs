@@ -103,7 +103,7 @@ function weeklyData_(sunday, tz) {
   const lastServices = weekServices_(sheet, cols, before, tz);
   const week = weekServices_(sheet, cols, sunday, tz);
   const services = week.map(function (s) {
-    const counts = SECTIONS.map(function (sec) {
+    const counts = s.sections.map(function (sec) {
       return {
         title: sec.title,
         subtotal: sec.areas.reduce(function (t, a) { return t + (Number(s.counts[a]) || 0); }, 0),
@@ -152,9 +152,9 @@ function wCell_(v) {
   return '<span style="font-size:11px;color:' + THEME.muted + '">' + esc_(v) + '</span>';
 }
 
-/** "+12", "−5" or "±0". */
+/** A change as "+12", "-5" (with a true minus sign) or "+/-0" (one plus-minus sign). */
 function wSigned_(c) {
-  return (c > 0 ? '+' : c < 0 ? '−' : '±') + Math.abs(c);
+  return (c > 0 ? '+' : c < 0 ? '\u2212' : '\u00B1') + Math.abs(c);
 }
 
 /** The change from last year, up in green and down in amber, when both are numbers. */
@@ -221,10 +221,10 @@ function weeklyHtml_(d) {
   // Quick boxes: each service, then Sunday School, two across
   const boxes = d.services.map(function (s, i) {
     const versus = wVersus_(s.total, s.lastYear);
-    return eBox_(s.name, s.total === null ? '—' : String(s.total),
+    return eBox_(s.name, s.total === null ? '\u2014' : String(s.total),
       esc_(Utilities.formatDate(s.date, tz, 'EEE M/d') + (s.total === null ? ', not logged' : '')) + (versus ? '<br>' + esc_(versus) : ''), i === 0);
   });
-  boxes.push(eBox_('Sunday School', typeof ssTotal.n === 'number' ? String(ssTotal.n) : '—', esc_(wVersus_(ssTotal.n, ssTotal.last)) || '&nbsp;'));
+  boxes.push(eBox_('Sunday School', typeof ssTotal.n === 'number' ? String(ssTotal.n) : '\u2014', esc_(wVersus_(ssTotal.n, ssTotal.last)) || '&nbsp;'));
   let quick = '';
   for (let i = 0; i < boxes.length; i += 2) quick += eRow_(boxes[i] + (boxes[i + 1] || ''));
   out.push(eCard_(quick));
@@ -265,10 +265,10 @@ function weeklyHtml_(d) {
     }).join('')));
   }
 
-  const preview = d.services.map(function (s) { return s.name + ' ' + (s.total === null ? '—' : s.total); }).join(' · ') +
-    (typeof ssTotal.n === 'number' ? ' · Sunday School ' + ssTotal.n : '');
+  const preview = d.services.map(function (s) { return s.name + ' ' + (s.total === null ? '\u2014' : s.total); }).join(' \u00B7 ') +
+    (typeof ssTotal.n === 'number' ? ' \u00B7 Sunday School ' + ssTotal.n : '');
   return ePage_(preview, 'Weekly attendance', 'Week of ' + Utilities.formatDate(d.sunday, tz, 'MMMM d'),
-    Utilities.formatDate(d.sunday, tz, 'MMM d') + ' – ' + Utilities.formatDate(end, tz, 'MMM d, yyyy'),
+    Utilities.formatDate(d.sunday, tz, 'MMM d') + ' \u2013 ' + Utilities.formatDate(end, tz, 'MMM d, yyyy'),
     out.join('\n'), weeklyFooter_(d));
 }
 
@@ -284,7 +284,7 @@ function weeklyFooter_(d) {
 
 function weeklyText_(d) {
   const tz = d.tz;
-  const show = function (v) { return v === '' || v === null || v === undefined ? '—' : String(v); };
+  const show = function (v) { return v === '' || v === null || v === undefined ? '\u2014' : String(v); };
   const lines = ['Weekly attendance, week of ' + Utilities.formatDate(d.sunday, tz, 'MMMM d, yyyy'), ''];
   d.services.forEach(function (s) {
     lines.push(s.name + ' (' + Utilities.formatDate(s.date, tz, 'EEE M/d') + '): ' + (s.total === null ? 'not logged' : s.total) +

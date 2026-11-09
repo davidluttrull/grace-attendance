@@ -100,7 +100,6 @@ function officeWeek_(sunday) {
   return {
     status: 'ok',
     week: ymd_(sunday, tz),
-    sections: SECTIONS,
     groups: OFFICE_GROUPS,
     services: services,
     office: office.values,
@@ -126,11 +125,13 @@ function weekServices_(sheet, cols, sunday, tz) {
     const d = get(r, 'Date');
     if (!(d instanceof Date) || ymd_(d, tz) < start || ymd_(d, tz) > end) return;
     const counts = {};
-    SECTIONS.forEach(function (s) {
+    allSections_().forEach(function (s) {
       s.areas.forEach(function (a) { counts[a] = typeof get(r, a) === 'number' ? get(r, a) : ''; });
     });
     const at = get(r, 'Submitted At');
     out.push({
+      // The service's rooms, plus any other room this row has a number in.
+      sections: rowSections_(String(get(r, 'Service')), function (h) { return get(r, h); }),
       date: ymd_(d, tz),
       service: String(get(r, 'Service')),
       otherName: String(get(r, 'Other Service')),
@@ -147,7 +148,7 @@ function weekServices_(sheet, cols, sunday, tz) {
     if (out.some(function (e) { return e.service === w.service; })) return;
     out.push({
       date: ymd_(new Date(sunday.getTime() + w.days * DAY_MS), tz), service: w.service, otherName: '',
-      logged: false, counts: {}, total: 0, by: '', at: '', edited: '', notes: '',
+      sections: sectionsFor_(w.service), logged: false, counts: {}, total: 0, by: '', at: '', edited: '', notes: '',
     });
   });
   return out.sort(function (a, b) {
@@ -321,8 +322,15 @@ function saveOfficeWeek_(form) {
     const service = String(s.service || '');
     if (SERVICES.indexOf(service) === -1) throw new Error('Unknown service: ' + service);
     const counts = s.counts || {};
+    // The page sends every room it showed for this service: its own, plus
+    // any other room the row had a number in.
+    const known = [];
+    allSections_().forEach(function (sec) { known.push.apply(known, sec.areas); });
+    Object.keys(counts).forEach(function (a) {
+      if (known.indexOf(a) === -1) throw new Error('Unknown room: ' + a + '. Reload the page.');
+    });
     const record = {};
-    fillCounts_(record, counts);
+    fillCounts_(record, counts, sectionsWith_(service, Object.keys(counts)));
     return {
       date: parseDate_(s.date),
       service: service,

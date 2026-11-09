@@ -188,7 +188,7 @@ function reportData_(sheet, cols, row, tz) {
     submittedAt: get(v, 'Submitted At'),
     notes: get(v, 'Notes'),
     tz: tz,
-    sections: SECTIONS.map(function (s) {
+    sections: rowSections_(get(v, 'Service'), function (h) { return get(v, h); }).map(function (s) {
       const areas = s.areas.map(function (a) { return { name: a, n: num(get(v, a)) }; });
       return {
         title: s.title,

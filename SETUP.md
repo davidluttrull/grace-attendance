@@ -145,11 +145,12 @@ The History tabs stay the full record, one row per week, after the old sheet. Ea
 |---|---|
 | Sunday AM, Sunday PM, Wednesday | That service's Total Attendance on the Attendance tab. Wednesday goes on the row of the Sunday before it, as in the old sheet. |
 | Auditorium | Sunday AM's Auditorium Subtotal. |
-| AM Nursery, PM Nursery, Wed Nursery | The three nurseries added together, at that service. |
+| AM Nursery, PM Nursery, Wed Nursery | The nurseries added together, at that service: Infant, Baby and Toddler on Sundays; Infant and Main Nursery on Wednesday. |
 | AM K4-K5, Wed K4-K5 | Pre-Primary (4-5 yrs), at that service. |
 | AM 1st-3rd, Wed 1st-3rd | Junior Church (1st-3rd), at that service. |
+| Wed 4th-6th | Wednesday's 4th-6th Grade. |
 | Keenagers/HGM, K4T/AWANA, the Sunday School columns, Notes | The week's row on the Weekly tab. SS Teens repeats SS Teen, as the old sheet did. |
-| Bus, Kidstown, Wed 4th-6th, Wed Teens | Nothing any more. They stay blank, or keep what the old sheet had. |
+| Bus, Kidstown, Wed Teens | Nothing any more. They stay blank, or keep what the old sheet had. |
 
 - A week goes on the History row dated in that week, so a Sunday count an usher logged on Tuesday still lands on Sunday's row.
 - Only columns that have something to fill them change. If the ushers haven't logged a service, the office hasn't saved the week, or the office left a box blank, those columns keep whatever was there. To remove a wrong number from a History row, type 0 in that box on the office page.
@@ -160,8 +161,9 @@ The emailed report reads the History tabs for **Recent services** and **Compared
 
 ## The Sheet
 
-- **Attendance:** one row per service, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, notes, whether the report was emailed, and any change made on the office page.
+- **Attendance:** every service's row, in this order: date, service, total, every area grouped by section with subtotals, bulletins, door ushers, who logged it, when, notes, whether the report was emailed, and any change made on the office page. Rooms that only one service counts (such as Wednesday's Hallway Classroom) have columns at the right end, and are blank on other services' rows. This is the tab the reports, the office page and the History tabs read.
 - **Summary:** one row per date, with the total for each service in its own column. It updates automatically.
+- **Sunday AM**, **Sunday PM**, **Wednesday** and **Other Services:** each service's rows from the Attendance tab, newest first, with only that service's rooms. They fill themselves in from a formula in cell A1, so don't type in them: make changes on the Attendance tab or the office page. Setup creates them, and the script rebuilds them when it adds a room column to the Attendance tab.
 - **Weekly:** the office page's numbers, one row per week (the Sunday's date), with the same column names as the History tabs, who saved it last, and when the weekly report went out.
 - **Report Emails:** the addresses that get both reports.
 - **History 2026** back to **History 2006:** one tab per year, newest first, after the other tabs. The old sheet's numbers, and from October 2026 the weeks from the ushers' page and the office page (see above).
@@ -181,7 +183,11 @@ Don't use **New deployment**, because it creates a new URL and the pages would s
 
 ## Changing rooms or areas
 
-Room names live near the top of `Code.gs`, in `SECTIONS`. To add, rename, or remove one, edit the list and follow "Updating the script" above.
+Room names live near the top of `Code.gs`. `SECTIONS` is the usual list: Sunday AM, Sunday PM and Other services count those rooms. A service listed in `SERVICE_SECTIONS` counts its own list instead. Today that's Wednesday, which has the Main Nursery (1-3 yrs) in place of the Baby and Toddler nurseries, adds 4th-6th Grade and the Hallway Classroom, and leaves out Fellowship Hall and the Kitchen. To add, rename, or remove a room, edit the list for that service and follow "Updating the script" above. To give Sunday AM or Sunday PM its own rooms, add it to `SERVICE_SECTIONS` the same way.
+
+Keep the three section titles (**Auditorium**, **Children**, **Other**) the same in every list, because each section's subtotal column is named after its title.
+
+The ushers' page shows each service's rooms as soon as the usher picks the service. Numbers already typed for a room both services count, such as South Wing, stay put when the service changes. When a row has a number in a room its service doesn't count any more (an old Wednesday with a Kitchen count, say), the office page and the emailed report still show that room for that row, so nothing logged goes missing. If an usher replaces such a row, the rooms the service doesn't count are cleared.
 
 The page itself doesn't need to change, because it reads the room list from the script. A phone that has the page open shows the new list a moment after the page loads. If someone submits from a page that still shows a removed room, the script refuses the numbers and asks them to reopen the page, so nothing is lost without a warning.
 
@@ -189,7 +195,7 @@ A new area gets its own column at the right end of the Attendance tab. Removing 
 
 A few rooms are also named in other files, so renaming one of them takes an extra edit:
 
-- The History tabs' children's columns look for the three nurseries, **Pre-Primary (4-5 yrs)** and **Junior Church (1st-3rd)** by name, in `historySources_` in `History.gs`. If you rename one, change it there too, or those History columns stop filling in.
+- The History tabs' children's columns look for the nurseries (including **Main Nursery (1-3 yrs)**), **Pre-Primary (4-5 yrs)**, **Junior Church (1st-3rd)** and **4th-6th Grade** by name, in `historySources_` in `History.gs`. If you rename one, change it there too, or those History columns stop filling in.
 - The auditorium floor plan in the emailed report looks for **South Wing**, **South Main**, **Platform**, **North Wing** and **North Main**. If they change, the report shows bars instead of the floor plan.
 
 The office page's boxes are in `OFFICE_GROUPS` near the top of `Office.gs`. Each box's `key` is a History tab column name, so change the `label` (what people see) and leave the `key` alone. Leave the card titles (`Sunday School`, `Sunday School Classes`, `Ministries`) alone as well, because the weekly report finds the cards by those titles.

@@ -10,8 +10,8 @@
  * the addresses on the Report Emails tab. Office.gs is the back end for the
  * office page (office/index.html), and Weekly.gs emails its weekly report.
  *
- * To add, rename or reorder an area, edit SECTIONS below and deploy a new
- * version. New areas get a new column at the right end of the sheet; old
+ * To add, rename or reorder an area, edit SECTIONS (or a service's list in
+ * SERVICE_SECTIONS) below and deploy a new version. New areas get a new column at the right end of the sheet; old
  * columns are never deleted, so past data stays put.
  */
 
@@ -20,7 +20,10 @@ const SUMMARY_NAME = 'Summary';
 
 const SERVICES = ['Sunday AM', 'Sunday PM', 'Wednesday', 'Other'];
 
-// Areas counted each service, in the order ushers see them.
+// Areas counted at each service, in the order ushers see them. A service in
+// SERVICE_SECTIONS below counts its own list instead. Keep the same three
+// section titles in every list: each section's subtotal column is named after
+// its title.
 const SECTIONS = [
   {
     title: 'Auditorium',
@@ -37,6 +40,27 @@ const SECTIONS = [
             'Kitchen', 'Late Comers'],
   },
 ];
+
+// Services whose rooms differ from SECTIONS.
+const SERVICE_SECTIONS = {
+  // Wednesday: Baby and Toddler share the Main Nursery, 4th-6th grade and the
+  // hallway classroom meet, and Fellowship Hall and the Kitchen aren't used.
+  'Wednesday': [
+    {
+      title: 'Auditorium',
+      areas: ['South Wing', 'South Main', 'Platform', 'North Wing', 'North Main'],
+    },
+    {
+      title: 'Children',
+      areas: ['Infant Nursery (0-1 yrs)', 'Main Nursery (1-3 yrs)', 'Pre-Primary (4-5 yrs)',
+              'Junior Church (1st-3rd)', '4th-6th Grade'],
+    },
+    {
+      title: 'Other',
+      areas: ['Ushers', 'Spanish Ministry', 'Little Chapel', 'Hallway Classroom', 'Late Comers'],
+    },
+  ],
+};
 
 // Usher door assignments from the bottom of the paper form.
 const DOORS = [
@@ -90,6 +114,7 @@ function setup() {
   const sheet = getSheet_();
   ensureEmailsTab_();
   weeklyTab_();
+  ensureServiceViews_(SpreadsheetApp.getActiveSpreadsheet(), headerIndex_(sheet));
   ensureWeeklyTrigger_();
   SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
 
@@ -135,10 +160,11 @@ function submitAttendance(form, replace) {
   if (service === 'Other' && !otherName) throw new Error('Please name the service.');
 
   const counts = form.counts || {};
-  // A phone still showing an old room list would send numbers for rooms that
-  // no longer exist. Refuse rather than drop them silently.
+  // A phone still showing an old room list would send numbers for rooms this
+  // service no longer counts. Refuse rather than drop them silently.
+  const sections = sectionsFor_(service);
   const known = {};
-  SECTIONS.forEach(function (section) {
+  sections.forEach(function (section) {
     section.areas.forEach(function (area) { known[area] = true; });
   });
   Object.keys(counts).forEach(function (area) {
@@ -148,7 +174,11 @@ function submitAttendance(form, replace) {
     }
   });
   const record = { 'Date': date, 'Service': service, 'Other Service': otherName };
-  const total = fillCounts_(record, counts);
+  // This replaces the whole row, so rooms this service doesn't count are blanked.
+  allSections_().forEach(function (section) {
+    section.areas.forEach(function (area) { if (!known[area]) record[area] = ''; });
+  });
+  const total = fillCounts_(record, counts, sections);
   record['Bulletins Left'] = count_(form.bulletins, 'Bulletins Left');
   const doors = form.doors || {};
   allDoors_().forEach(function (n) {
@@ -195,12 +225,13 @@ function submitAttendance(form, replace) {
 }
 
 /**
- * Puts each area's count from counts ({area: number or ""}) into record, with
- * the section subtotals and Total Attendance. Returns the total.
+ * Puts each area's count from counts ({area: number or ""}) into record, for
+ * the areas in sections, with the section subtotals and Total Attendance.
+ * Returns the total.
  */
-function fillCounts_(record, counts) {
+function fillCounts_(record, counts, sections) {
   let total = 0;
-  SECTIONS.forEach(function (section) {
+  sections.forEach(function (section) {
     let subtotal = 0;
     section.areas.forEach(function (area) {
       const n = count_(counts[area], area);
@@ -242,12 +273,62 @@ function writeRow_(sheet, cols, row, record, formats) {
 }
 
 function pageConfig_() {
-  return { sections: SECTIONS, doors: DOORS, services: SERVICES };
+  return { sections: SECTIONS, serviceSections: SERVICE_SECTIONS, doors: DOORS, services: SERVICES };
+}
+
+/** The areas a service counts, by section. */
+function sectionsFor_(service) {
+  return SERVICE_SECTIONS[service] || SECTIONS;
+}
+
+/** Every area any service counts, by section: SECTIONS' areas first, then the others'. */
+function allSections_() {
+  return SECTIONS.map(function (section) {
+    const areas = section.areas.slice();
+    Object.keys(SERVICE_SECTIONS).forEach(function (service) {
+      SERVICE_SECTIONS[service].forEach(function (s) {
+        if (s.title !== section.title) return;
+        s.areas.forEach(function (a) { if (areas.indexOf(a) === -1) areas.push(a); });
+      });
+    });
+    return { title: section.title, areas: areas };
+  });
+}
+
+/**
+ * A service's sections, with any of the named areas it doesn't count added
+ * to the end of their sections: rooms the service used to count, or another
+ * service's rooms, that a row has numbers in.
+ */
+function sectionsWith_(service, names) {
+  const all = allSections_();
+  return sectionsFor_(service).map(function (own) {
+    const extra = all.filter(function (s) { return s.title === own.title; })[0].areas.filter(function (a) {
+      return own.areas.indexOf(a) === -1 && names.indexOf(a) > -1;
+    });
+    return { title: own.title, areas: own.areas.concat(extra) };
+  });
+}
+
+/**
+ * The sections to show for a logged row, so no number in it goes missing:
+ * its service's areas plus any other area it has a number in.
+ * get(header) returns that row's value.
+ */
+function rowSections_(service, get) {
+  const names = [];
+  allSections_().forEach(function (s) {
+    s.areas.forEach(function (a) {
+      const v = get(a);
+      if (v !== '' && v !== null && v !== undefined) names.push(a);
+    });
+  });
+  return sectionsWith_(service, names);
 }
 
 function headers_() {
   const h = ['Date', 'Service', 'Other Service', 'Total Attendance'];
-  SECTIONS.forEach(function (section) {
+  allSections_().forEach(function (section) {
     section.areas.forEach(function (area) { h.push(area); });
     h.push(section.title + ' Subtotal');
   });
@@ -302,6 +383,8 @@ function headerIndex_(sheet) {
 
   const index = {};
   current.forEach(function (h, i) { if (h) index[h] = i + 1; });
+  // New columns can be new rooms, which the service tabs should show.
+  if (missing.length) ensureServiceViews_(SpreadsheetApp.getActiveSpreadsheet(), index);
   return index;
 }
 
@@ -326,10 +409,7 @@ function formatSheet_(sheet, headers) {
 function ensureSummary_(ss, cols) {
   let summary = ss.getSheetByName(SUMMARY_NAME);
   if (!summary) summary = ss.insertSheet(SUMMARY_NAME);
-  const ref = function (h) {
-    const letter = columnLetter_(cols[h]);
-    return "'" + SHEET_NAME + "'!" + letter + ':' + letter;
-  };
+  const ref = function (h) { return columnRef_(cols, h); };
   const formula = '=QUERY({' + ref('Date') + ', ' + ref('Service') + ', ' + ref('Total Attendance') + '}, ' +
     '"select Col1, sum(Col3) where Col1 is not null group by Col1 pivot Col2 order by Col1 desc", 1)';
   const cell = summary.getRange(1, 1);
@@ -339,6 +419,59 @@ function ensureSummary_(ss, cols) {
     summary.getRange('A2:A').setNumberFormat(DATE_FORMAT);
     summary.setFrozenRows(1);
   }
+}
+
+/** "'Attendance'!D:D": a whole Attendance column, for formulas. */
+function columnRef_(cols, h) {
+  const letter = columnLetter_(cols[h]);
+  return "'" + SHEET_NAME + "'!" + letter + ':' + letter;
+}
+
+/**
+ * One tab per service (Sunday AM, Sunday PM, Wednesday, Other Services),
+ * showing that service's rows from the Attendance tab with only its own
+ * rooms, newest first. Each is a formula, so it fills itself in; type
+ * changes on the Attendance tab or the office page, not here. Rebuilt when
+ * the Attendance tab gets new columns.
+ */
+function ensureServiceViews_(ss, cols) {
+  SERVICES.forEach(function (service, i) {
+    const name = service === 'Other' ? 'Other Services' : service;
+    const headers = ['Date'].concat(service === 'Other' ? ['Other Service'] : [], ['Total Attendance']);
+    sectionsFor_(service).forEach(function (section) {
+      headers.push.apply(headers, section.areas);
+      headers.push(section.title + ' Subtotal');
+    });
+    headers.push('Bulletins Left', 'Submitted By', 'Notes');
+    // Col1 is the Service column, to pick the rows; the rest are shown.
+    const refs = [columnRef_(cols, 'Service')].concat(headers.map(function (h) { return columnRef_(cols, h); }));
+    const shown = headers.map(function (h, c) { return 'Col' + (c + 2); });
+    const formula = '=QUERY({' + refs.join(', ') + '}, "select ' + shown.join(', ') +
+      " where Col1 = '" + service + "' order by Col2 desc\", 1)";
+
+    let tab = ss.getSheetByName(name);
+    if (!tab) {
+      const summary = ss.getSheetByName(SUMMARY_NAME);
+      tab = ss.insertSheet(name, summary ? summary.getIndex() + i : ss.getNumSheets());
+    }
+    const cell = tab.getRange(1, 1);
+    if (cell.getFormula() === formula) return;
+    tab.clear();
+    cell.setFormula(formula);
+    if (tab.getMaxColumns() < headers.length) tab.insertColumnsAfter(tab.getMaxColumns(), headers.length - tab.getMaxColumns());
+    tab.getRange(1, 1, 1, headers.length).setFontWeight('bold').setFontColor('#ffffff').setBackground('#233617')
+      .setWrap(true).setVerticalAlignment('middle');
+    headers.forEach(function (h, c) {
+      if (h === 'Total Attendance' || /Subtotal$/.test(h)) {
+        tab.getRange(1, c + 1).setBackground('#4E7A35');
+        tab.getRange(2, c + 1, tab.getMaxRows() - 1, 1).setFontWeight('bold');
+      }
+    });
+    tab.getRange(2, 1, tab.getMaxRows() - 1, 1).setNumberFormat(DATE_FORMAT);
+    tab.setFrozenRows(1);
+    tab.setFrozenColumns(1);
+    tab.setTabColor('#4E7A35');
+  });
 }
 
 function columnLetter_(n) {
