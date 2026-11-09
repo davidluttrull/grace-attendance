@@ -43,8 +43,9 @@ const SECTIONS = [
 
 // Services whose rooms differ from SECTIONS.
 const SERVICE_SECTIONS = {
-  // Wednesday: Baby and Toddler share the Main Nursery, 4th-6th grade and the
-  // hallway classroom meet, and Fellowship Hall and the Kitchen aren't used.
+  // Wednesday: Baby and Toddler share the Main Nursery, 4th-6th grade has its
+  // own Junior Church, the Chapel Hall classroom meets, and Fellowship Hall and
+  // the Kitchen aren't used.
   'Wednesday': [
     {
       title: 'Auditorium',
@@ -53,13 +54,21 @@ const SERVICE_SECTIONS = {
     {
       title: 'Children',
       areas: ['Infant Nursery (0-1 yrs)', 'Main Nursery (1-3 yrs)', 'Pre-Primary (4-5 yrs)',
-              'Junior Church (1st-3rd)', '4th-6th Grade'],
+              'Junior Church (1st-3rd)', 'Junior Church (4th-6th)'],
     },
     {
       title: 'Other',
-      areas: ['Ushers', 'Spanish Ministry', 'Little Chapel', 'Hallway Classroom', 'Late Comers'],
+      areas: ['Ushers', 'Spanish Ministry', 'Little Chapel', 'Chapel Hall Classroom', 'Late Comers'],
     },
   ],
+};
+
+// Rooms renamed after they were first counted, old name: new name. The
+// script renames the old column on the Attendance tab, so the numbers
+// already logged stay with the room.
+const RENAMED_AREAS = {
+  '4th-6th Grade': 'Junior Church (4th-6th)',
+  'Hallway Classroom': 'Chapel Hall Classroom',
 };
 
 // Usher door assignments from the bottom of the paper form.
@@ -368,6 +377,14 @@ function getSheet_() {
 function headerIndex_(sheet) {
   const lastCol = sheet.getLastColumn();
   const current = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
+  // A renamed room keeps its column, and the numbers in it, under the new name.
+  Object.keys(RENAMED_AREAS).forEach(function (old) {
+    const i = current.indexOf(old);
+    if (i > -1 && current.indexOf(RENAMED_AREAS[old]) === -1) {
+      sheet.getRange(1, i + 1).setValue(RENAMED_AREAS[old]);
+      current[i] = RENAMED_AREAS[old];
+    }
+  });
   const missing = headers_().filter(function (h) { return current.indexOf(h) === -1; });
 
   if (missing.length) {

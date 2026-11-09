@@ -289,7 +289,7 @@ function historyCounts_(service, years) {
 // entered yet (a service the ushers didn't log, a week the office hasn't
 // saved), or one the office left blank, keeps whatever the History tab had
 // there. Bus, Kidstown and Wed Teens have no source any more and are left
-// alone. Wed 4th-6th comes from Wednesday's 4th-6th Grade room.
+// alone. Wed 4th-6th comes from Wednesday's Junior Church (4th-6th).
 
 /** Where each History column comes from: an Attendance column or areas of a service, or a Weekly tab column. */
 function historySources_() {
@@ -307,7 +307,7 @@ function historySources_() {
     'Wed Nursery': { service: 'Wednesday', areas: nurseries },
     'Wed K4-K5': { service: 'Wednesday', areas: ['Pre-Primary (4-5 yrs)'] },
     'Wed 1st-3rd': { service: 'Wednesday', areas: ['Junior Church (1st-3rd)'] },
-    'Wed 4th-6th': { service: 'Wednesday', areas: ['4th-6th Grade'] },
+    'Wed 4th-6th': { service: 'Wednesday', areas: ['Junior Church (4th-6th)'] },
     'Notes': { weekly: 'Notes' },
     'SS Teens': { weekly: 'SS Teen' },   // the old Children's Ministries tab repeated SS Teen
   };
