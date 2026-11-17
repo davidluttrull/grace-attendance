@@ -145,7 +145,7 @@ The History tabs stay the full record, one row per week, after the old sheet. Ea
 |---|---|
 | Sunday AM, Sunday PM, Wednesday | That service's Total Attendance on the Attendance tab. Wednesday goes on the row of the Sunday before it, as in the old sheet. |
 | Auditorium | Sunday AM's Auditorium Subtotal. |
-| AM Nursery, PM Nursery, Wed Nursery | The nurseries added together, at that service: Infant, Baby and Toddler on Sundays; Infant and Main Nursery on Wednesday. |
+| AM Nursery, PM Nursery, Wed Nursery | The nurseries added together, at that service: Infant and Main Nursery (and Baby and Toddler, on rows from before the Main Nursery). |
 | AM K4-K5, Wed K4-K5 | Pre-Primary (4-5 yrs), at that service. |
 | AM 1st-3rd, Wed 1st-3rd | Junior Church (1st-3rd), at that service. |
 | Wed 4th-6th | Wednesday's Junior Church (4th-6th). |
@@ -183,7 +183,18 @@ Don't use **New deployment**, because it creates a new URL and the pages would s
 
 ## Changing rooms or areas
 
-Room names live near the top of `Code.gs`. `SECTIONS` is the usual list: Sunday AM, Sunday PM and Other services count those rooms. A service listed in `SERVICE_SECTIONS` counts its own list instead. Today that's Wednesday, which has the Main Nursery (1-3 yrs) in place of the Baby and Toddler nurseries, adds Junior Church (4th-6th) and the Chapel Hall Classroom, and leaves out Fellowship Hall and the Kitchen. To add or remove a room, edit the list for that service and follow "Updating the script" above. To give Sunday AM or Sunday PM its own rooms, add it to `SERVICE_SECTIONS` the same way.
+Room names live near the top of `Code.gs`. Sunday AM, Sunday PM and Wednesday each have their own list in `SERVICE_SECTIONS`. Other services use `SECTIONS`, the original list.
+
+| Service | Children | Other |
+|---|---|---|
+| Sunday AM | Infant Nursery, Main Nursery, Pre-Primary (Hall Classroom), Junior Church 1st-3rd (Fellowship Hall) | Ushers, Spanish Ministry, Late Comers |
+| Sunday PM | Infant Nursery, Main Nursery, AWANA | Ushers, Spanish Ministry, Fellowship Hall, AWANA Workers, Late Comers |
+| Wednesday | Infant Nursery, Main Nursery, Pre-Primary, KidsTown 1st-3rd, KidsTown 4th-6th | Ushers, Spanish Ministry, Little Chapel, Chapel Hall Classroom, Late Comers |
+| Other services | Infant, Baby and Toddler Nurseries, Pre-Primary, Junior Church 1st-3rd | Ushers, Spanish Ministry, Little Chapel, Fellowship Hall, Kitchen, Late Comers |
+
+The Auditorium is the same five sections everywhere. To add or remove a room, edit the list for that service and follow "Updating the script" above.
+
+`ROOM_LABELS`, just below the lists, sets what ushers see for a room at one service when it isn't the room's name: "KidsTown (1st-3rd)" on Wednesday, or "Pre-Primary (4-5 yrs) – Hall Classroom" on Sunday morning. The count still goes in the room's own column on the Attendance tab (Junior Church (1st-3rd), Pre-Primary (4-5 yrs)), so past weeks and the History tabs line up. The ushers' page, the office page, the emailed reports and the service tabs all show the label. To relabel a room, add or change it there. The column names on the Attendance tab stay as they are.
 
 To rename a room, change its name in the list and also add the old and new names to `RENAMED_AREAS`, just below. The next time the script runs, it renames that column's header on the Attendance tab, so the numbers already logged stay with the room. Without that entry, the new name gets an empty column of its own and the old numbers stay behind in the old one. That's how Wednesday's **4th-6th Grade** became **Junior Church (4th-6th)** and **Hallway Classroom** became **Chapel Hall Classroom**.
 

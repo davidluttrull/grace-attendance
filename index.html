@@ -444,7 +444,12 @@
     return (CONFIG.serviceSections || {})[name] || CONFIG.sections;
   }
 
-  function buildSections(list) {
+  /** What the usher sees for a room at this service (KidsTown on Wednesday), or its name. */
+  function labelFor(name, area) {
+    return ((CONFIG.labels || {})[name] || {})[area] || area;
+  }
+
+  function buildSections(list, name) {
     shown = list;
     const sections = $('#sections');
     sections.innerHTML = '';
@@ -454,7 +459,7 @@
       card.innerHTML = '<div class="card-head"><h2>' + esc(section.title) + '</h2>' +
         '<span class="sub" data-sub="' + si + '">0</span></div>';
       section.areas.forEach((area) => {
-        const row = stepRow(area, { area: area, section: si });
+        const row = stepRow(labelFor(name, area), { area: area, section: si });
         row.querySelector('input').value = typed[area] || '';
         card.appendChild(row);
       });
@@ -515,7 +520,7 @@
     const list = sectionsFor(name);
     if (list !== shown) {
       if (shown) $$('input[data-area]').forEach((i) => { typed[i.dataset.area] = i.value; });
-      buildSections(list);
+      buildSections(list, name);
       recalc();
     }
   }

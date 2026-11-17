@@ -293,7 +293,7 @@ function historyCounts_(service, years) {
 
 /** Where each History column comes from: an Attendance column or areas of a service, or a Weekly tab column. */
 function historySources_() {
-  // Every nursery room, whichever ones a service counts (Wednesday has the Main Nursery).
+  // Every nursery room, whichever ones a service counts (Sundays and Wednesday now have the Main Nursery).
   const nurseries = ['Infant Nursery (0-1 yrs)', 'Baby Nursery (1-2 yrs)', 'Toddler Nursery (2-3 yrs)', 'Main Nursery (1-3 yrs)'];
   const out = {
     'Sunday AM': { service: 'Sunday AM', column: 'Total Attendance' },

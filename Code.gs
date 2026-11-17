@@ -41,8 +41,43 @@ const SECTIONS = [
   },
 ];
 
-// Services whose rooms differ from SECTIONS.
+// Services whose rooms differ from SECTIONS. Sunday AM, Sunday PM and
+// Wednesday each have their own list; Other services use SECTIONS.
 const SERVICE_SECTIONS = {
+  // Sunday AM: Baby and Toddler share the Main Nursery, and Little Chapel,
+  // Fellowship Hall (now Junior Church's room) and the Kitchen aren't counted.
+  'Sunday AM': [
+    {
+      title: 'Auditorium',
+      areas: ['South Wing', 'South Main', 'Platform', 'North Wing', 'North Main'],
+    },
+    {
+      title: 'Children',
+      areas: ['Infant Nursery (0-1 yrs)', 'Main Nursery (1-3 yrs)', 'Pre-Primary (4-5 yrs)',
+              'Junior Church (1st-3rd)'],
+    },
+    {
+      title: 'Other',
+      areas: ['Ushers', 'Spanish Ministry', 'Late Comers'],
+    },
+  ],
+  // Sunday PM: Baby and Toddler share the Main Nursery, the children are at
+  // AWANA, and the AWANA workers are counted; Little Chapel and the Kitchen
+  // aren't.
+  'Sunday PM': [
+    {
+      title: 'Auditorium',
+      areas: ['South Wing', 'South Main', 'Platform', 'North Wing', 'North Main'],
+    },
+    {
+      title: 'Children',
+      areas: ['Infant Nursery (0-1 yrs)', 'Main Nursery (1-3 yrs)', 'AWANA'],
+    },
+    {
+      title: 'Other',
+      areas: ['Ushers', 'Spanish Ministry', 'Fellowship Hall', 'AWANA Workers', 'Late Comers'],
+    },
+  ],
   // Wednesday: Baby and Toddler share the Main Nursery, 4th-6th grade has its
   // own Junior Church, the Chapel Hall classroom meets, and Fellowship Hall and
   // the Kitchen aren't used.
@@ -61,6 +96,21 @@ const SERVICE_SECTIONS = {
       areas: ['Ushers', 'Spanish Ministry', 'Little Chapel', 'Chapel Hall Classroom', 'Late Comers'],
     },
   ],
+};
+
+// What ushers see for a room at one service, when it isn't the room's name.
+// The count still goes in the room's own column on the Attendance tab, so the
+// History tabs and past weeks line up: Wednesday's KidsTown classes are the
+// Junior Church columns, for example.
+const ROOM_LABELS = {
+  'Sunday AM': {
+    'Pre-Primary (4-5 yrs)': 'Pre-Primary (4-5 yrs) \u2013 Hall Classroom',
+    'Junior Church (1st-3rd)': 'Junior Church (1st-3rd) \u2013 Fellowship Hall',
+  },
+  'Wednesday': {
+    'Junior Church (1st-3rd)': 'KidsTown (1st-3rd)',
+    'Junior Church (4th-6th)': 'KidsTown (4th-6th)',
+  },
 };
 
 // Rooms renamed after they were first counted, old name: new name. The
@@ -282,7 +332,12 @@ function writeRow_(sheet, cols, row, record, formats) {
 }
 
 function pageConfig_() {
-  return { sections: SECTIONS, serviceSections: SERVICE_SECTIONS, doors: DOORS, services: SERVICES };
+  return { sections: SECTIONS, serviceSections: SERVICE_SECTIONS, labels: ROOM_LABELS, doors: DOORS, services: SERVICES };
+}
+
+/** What ushers see for a room at a service: its label there, or its name. */
+function areaLabel_(service, area) {
+  return (ROOM_LABELS[service] || {})[area] || area;
 }
 
 /** The areas a service counts, by section. */
@@ -463,8 +518,13 @@ function ensureServiceViews_(ss, cols) {
     // Col1 is the Service column, to pick the rows; the rest are shown.
     const refs = [columnRef_(cols, 'Service')].concat(headers.map(function (h) { return columnRef_(cols, h); }));
     const shown = headers.map(function (h, c) { return 'Col' + (c + 2); });
+    // Rooms with a label at this service (KidsTown on Wednesday) show it as their heading.
+    const labels = headers.map(function (h, c) {
+      const label = areaLabel_(service, h);
+      return label === h ? '' : shown[c] + " '" + label.replace(/'/g, '') + "'";
+    }).filter(String);
     const formula = '=QUERY({' + refs.join(', ') + '}, "select ' + shown.join(', ') +
-      " where Col1 = '" + service + "' order by Col2 desc\", 1)";
+      " where Col1 = '" + service + "' order by Col2 desc" + (labels.length ? ' label ' + labels.join(', ') : '') + '", 1)';
 
     let tab = ss.getSheetByName(name);
     if (!tab) {

@@ -512,7 +512,7 @@
         const grid = document.createElement('div');
         grid.className = 'grid';
         sec.areas.forEach((a) => {
-          const row = numRow(a, { svc: si, area: a, sec: ki });
+          const row = numRow((s.labels || {})[a] || a, { svc: si, area: a, sec: ki });
           row.querySelector('input').value = value(s.counts[a]);
           grid.appendChild(row);
         });

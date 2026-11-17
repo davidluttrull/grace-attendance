@@ -132,6 +132,7 @@ function weekServices_(sheet, cols, sunday, tz) {
     out.push({
       // The service's rooms, plus any other room this row has a number in.
       sections: rowSections_(String(get(r, 'Service')), function (h) { return get(r, h); }),
+      labels: ROOM_LABELS[String(get(r, 'Service'))] || {},
       date: ymd_(d, tz),
       service: String(get(r, 'Service')),
       otherName: String(get(r, 'Other Service')),
@@ -148,7 +149,7 @@ function weekServices_(sheet, cols, sunday, tz) {
     if (out.some(function (e) { return e.service === w.service; })) return;
     out.push({
       date: ymd_(new Date(sunday.getTime() + w.days * DAY_MS), tz), service: w.service, otherName: '',
-      sections: sectionsFor_(w.service), logged: false, counts: {}, total: 0, by: '', at: '', edited: '', notes: '',
+      sections: sectionsFor_(w.service), labels: ROOM_LABELS[w.service] || {}, logged: false, counts: {}, total: 0, by: '', at: '', edited: '', notes: '',
     });
   });
   return out.sort(function (a, b) {
