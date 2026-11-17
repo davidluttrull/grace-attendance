@@ -1,6 +1,6 @@
 # Usher Attendance: Setup
 
-This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff. A second page, for the church office, takes the week's other numbers (Sunday School, Keenagers, AWANA) and emails a weekly report every Saturday morning.
+This replaces the paper Church Attendance sheet with a web page ushers open on their phones. Each time an usher submits, it adds one row to a Google Sheet and emails a report to the staff. A second page, for the church office, takes the week's other numbers (Sunday School and Keenagers) and emails a weekly report every Saturday morning.
 
 It has three parts:
 
@@ -85,9 +85,10 @@ The office fills in the week's other numbers at <https://davidluttrull.github.io
 - It opens on the current week, Sunday through Saturday. The arrows move a week at a time, and **Go to** jumps to the week containing any date. **This week** comes back to the current week. The right arrow stops at the current week. The address ends in the week's Sunday (`…/office/#2026-10-18`), so a bookmark goes back to that week.
 - **Usher Counts** lists the week's services: Sunday AM, Sunday PM, Wednesday, and any others the ushers logged. Open one to see every area. Change a number to correct it, or fill in a service the ushers missed. Saving updates or adds that service's row on the Attendance tab and notes who changed it in the **Office Edit** column. It doesn't email the per-service report.
 - A service the office fills in gets a new row on the Attendance tab with the office person's name under **Submitted By**, "Entered by" in **Office Edit**, and *Not emailed: entered on the office page* under **Report Emailed**. To send its report anyway, use the **Attendance** menu (see "Emailed reports").
-- Below that are the numbers the ushers don't count: Sunday School adults and teens, the five Sunday School classes (Nursery, K4-K5, 1st-2nd, 3rd-4th, 5th-6th), Keenagers and AWANA. Children's attendance during services isn't here, because the ushers count it.
+- Below that are the numbers the ushers don't count: Sunday School adults and teens, the five Sunday School classes (Nursery, K4-K5, 1st-2nd, 3rd-4th, 5th-6th), and Keenagers. Children's attendance during services isn't here, because the ushers count it.
+- **AWANA** under Ministries isn't typed in. It's the ushers' AWANA count from Sunday PM and changes as that box does. For a week before the ushers counted AWANA, it shows the number the office saved or the old sheet had. The weekly email and the History tabs use the same number. (In `OFFICE_GROUPS`, a field with `from` works this way.)
 - Sunday School **Children** isn't typed in. It's the total of the classes, and the Sunday School **Total** is adults plus teens plus children. Both update as the boxes change.
-- On the Weekly tab, Keenagers and AWANA are saved under the History tabs' column names, **Keenagers/HGM** and **K4T/AWANA**, so the weekly report can find last year's numbers.
+- On the Weekly tab, Keenagers is saved under the History tabs' column name, **Keenagers/HGM**, so the weekly report can find last year's numbers. The Weekly tab's **K4T/AWANA** column keeps the numbers the office typed before AWANA moved to the ushers; saving no longer changes it.
 - **Save** puts the week on the **Weekly** tab, one row per week. Save as often as you like through the week: each save replaces that week's row. Saving doesn't email anyone.
 - For weeks before the office page, it shows the old sheet's numbers from the History tabs. Saving one of those weeks copies its numbers to the Weekly tab. Words such as "No Awana" aren't copied to the Weekly tab, because the boxes only take numbers, but they stay on the History tab: a box left blank never changes it.
 - If you move to another week or close the page with unsaved changes, it asks first.
@@ -149,7 +150,8 @@ The History tabs stay the full record, one row per week, after the old sheet. Ea
 | AM K4-K5, Wed K4-K5 | Pre-Primary (4-5 yrs), at that service. |
 | AM 1st-3rd, Wed 1st-3rd | Junior Church (1st-3rd), at that service. |
 | Wed 4th-6th | Wednesday's Junior Church (4th-6th). |
-| Keenagers/HGM, K4T/AWANA, the Sunday School columns, Notes | The week's row on the Weekly tab. SS Teens repeats SS Teen, as the old sheet did. |
+| K4T/AWANA | Sunday PM's AWANA count on the Attendance tab. For a week the ushers didn't count AWANA, the Weekly tab's K4T/AWANA. |
+| Keenagers/HGM, the Sunday School columns, Notes | The week's row on the Weekly tab. SS Teens repeats SS Teen, as the old sheet did. |
 | Bus, Kidstown, Wed Teens | Nothing any more. They stay blank, or keep what the old sheet had. |
 
 - A week goes on the History row dated in that week, so a Sunday count an usher logged on Tuesday still lands on Sunday's row.

@@ -547,6 +547,15 @@
           grid.appendChild(row);
           return;
         }
+        if (f.from) {
+          // Not typed: the ushers' count in that service's card above, kept up to date by recalc.
+          const row = document.createElement('div');
+          row.className = 'num';
+          row.innerHTML = '<label>' + esc(f.label) + '<small>The ushers\u2019 ' + esc(f.from.service) + ' count, above</small></label>' +
+            '<output data-from="' + esc(f.key) + '"></output>';
+          grid.appendChild(row);
+          return;
+        }
         const row = numRow(f.label, { key: f.key, group: gi });
         row.querySelector('input').value = value(w.office[f.key]);
         grid.appendChild(row);
@@ -588,6 +597,16 @@
     const val = {};
     $$('input[data-key]').forEach((i) => { val[i.dataset.key] = i.value === '' ? null : num(i); });
     const sum = (list) => list.some((n) => n !== null) ? list.reduce((t, n) => t + (n || 0), 0) : null;
+    w.groups.forEach((g) => g.fields.forEach((f) => {
+      if (!f.from) return;
+      // The ushers' box for that room, or for a week before they counted it, what the office or old sheet had.
+      const si = w.services.findIndex((s) => s.service === f.from.service);
+      const input = si < 0 ? null : $('input[data-svc="' + si + '"][data-area="' + CSS.escape(f.from.area) + '"]');
+      const kept = w.office[f.key];
+      val[f.key] = input && input.value !== '' ? num(input) : typeof kept === 'number' ? kept : null;
+      $('output[data-from="' + CSS.escape(f.key) + '"]').textContent =
+        val[f.key] !== null ? val[f.key] : kept !== undefined && kept !== '' ? kept : '\u2013';
+    }));
     w.groups.forEach((g) => g.fields.forEach((f) => {
       if (!f.sumOf) return;
       val[f.key] = sum(w.groups.find((x) => x.title === f.sumOf).fields.map((x) => val[x.key]));

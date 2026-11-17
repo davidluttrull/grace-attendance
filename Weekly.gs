@@ -127,9 +127,15 @@ function weeklyData_(sunday, tz) {
     sunday: sunday,
     tz: tz,
     services: services,
-    office: officeValues_(sunday, tz),
-    lastOffice: officeValues_(before, tz),
+    office: ushersOffice_(officeValues_(sunday, tz), week),
+    lastOffice: ushersOffice_(officeValues_(before, tz), lastServices),
   };
+}
+
+/** officeValues_'s result with AWANA taken from the ushers' count (withUshers_). */
+function ushersOffice_(office, services) {
+  office.values = withUshers_(office.values, services);
+  return office;
 }
 
 /** A service's count in the History tabs for the week starting on sunday, or null. */

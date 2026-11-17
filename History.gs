@@ -289,7 +289,9 @@ function historyCounts_(service, years) {
 // entered yet (a service the ushers didn't log, a week the office hasn't
 // saved), or one the office left blank, keeps whatever the History tab had
 // there. Bus, Kidstown and Wed Teens have no source any more and are left
-// alone. Wed 4th-6th comes from Wednesday's Junior Church (4th-6th).
+// alone. Wed 4th-6th comes from Wednesday's Junior Church (4th-6th). K4T/AWANA
+// is the ushers' Sunday PM AWANA count, or the Weekly tab's number for a week
+// before they counted it.
 
 /** Where each History column comes from: an Attendance column or areas of a service, or a Weekly tab column. */
 function historySources_() {
@@ -312,6 +314,12 @@ function historySources_() {
     'SS Teens': { weekly: 'SS Teen' },   // the old Children's Ministries tab repeated SS Teen
   };
   officeColumns_().forEach(function (k) { out[k] = { weekly: k }; });
+  // A field the ushers count (AWANA): their number, else the Weekly tab's.
+  OFFICE_GROUPS.forEach(function (g) {
+    g.fields.forEach(function (f) {
+      if (f.from) out[f.key] = { service: f.from.service, areas: [f.from.area], weekly: f.key };
+    });
+  });
   return out;
 }
 
@@ -378,6 +386,16 @@ function syncHistory_(weeks) {
       Object.keys(sources).forEach(function (h) {
         const src = sources[h];
         const c = head.indexOf(h);
+        const r = src.service ? w.services[src.service] : null;
+        if (r) {
+          const v = src.column ? r[cols[src.column] - 1]
+            : sum_(src.areas.map(function (a) { return cols[a] ? r[cols[a] - 1] : ''; }));
+          // A column with a Weekly fallback (AWANA) only takes the ushers' count when there is one.
+          if (!src.weekly || v !== '') {
+            row[c] = v;
+            return;
+          }
+        }
         if (src.weekly) {
           if (!w.weekly || !wcols[src.weekly]) return;
           const v = w.weekly[wcols[src.weekly] - 1];
@@ -385,11 +403,6 @@ function syncHistory_(weeks) {
           // like "No Awana" that the number boxes can't show).
           if (v === '' || v === null) return;
           row[c] = v;
-        } else {
-          const r = w.services[src.service];
-          if (!r) return;
-          row[c] = src.column ? r[cols[src.column] - 1]
-            : sum_(src.areas.map(function (a) { return cols[a] ? r[cols[a] - 1] : ''; }));
         }
       });
       filled++;

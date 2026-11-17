@@ -2,9 +2,9 @@
  * Grace Baptist Church - Usher Attendance: the office page
  *
  * Back end for office/index.html. Through the week, the office fills in the
- * numbers the ushers don't count (Sunday School and its classes, Keenagers and
- * AWANA: columns of the History tabs) and checks or corrects what the ushers
- * logged. A week is a Sunday and the Wednesday after
+ * numbers the ushers don't count (Sunday School and its classes and Keenagers:
+ * columns of the History tabs) and checks or corrects what the ushers logged.
+ * AWANA is the ushers' Sunday PM count, so the office doesn't type it. A week is a Sunday and the Wednesday after
  * it, as in the History tabs. Its office numbers are one row of the Weekly
  * tab, under the same column names as the History tabs.
  *
@@ -24,6 +24,9 @@ const DAY_MS = 86400000;
 // What the office page asks for, card by card. Each key is a History tab
 // column; labels are what the page and the weekly email show. A "sumOf" field
 // isn't typed: it's the total of that card's boxes, filled in as they change.
+// A "from" field isn't typed either: it's a room the ushers count at a
+// service. Weeks before they counted it keep the number the office or the old
+// sheet had.
 const OFFICE_GROUPS = [
   {
     title: 'Sunday School',
@@ -48,7 +51,7 @@ const OFFICE_GROUPS = [
     title: 'Ministries',
     fields: [
       { key: 'Keenagers/HGM', label: 'Keenagers' },
-      { key: 'K4T/AWANA', label: 'AWANA' },
+      { key: 'K4T/AWANA', label: 'AWANA', from: { service: 'Sunday PM', area: 'AWANA' } },
     ],
   },
 ];
@@ -286,6 +289,23 @@ function officeGroup_(title) {
   return OFFICE_GROUPS.filter(function (g) { return g.title === title; })[0];
 }
 
+/**
+ * A week's office numbers with each "from" field (AWANA) replaced by the
+ * ushers' count, when they logged one. services is the week from weekServices_.
+ */
+function withUshers_(values, services) {
+  const out = {};
+  Object.keys(values).forEach(function (k) { out[k] = values[k]; });
+  OFFICE_GROUPS.forEach(function (g) {
+    g.fields.forEach(function (f) {
+      if (!f.from) return;
+      const s = services.filter(function (e) { return e.logged && e.service === f.from.service; })[0];
+      if (s && typeof s.counts[f.from.area] === 'number') out[f.key] = s.counts[f.from.area];
+    });
+  });
+  return out;
+}
+
 /** The total of the numbers in list, or "" when none of them is a number. */
 function sum_(list) {
   const nums = list.filter(function (n) { return typeof n === 'number'; });
@@ -307,7 +327,8 @@ function saveOfficeWeek_(form) {
   const office = {};
   OFFICE_GROUPS.forEach(function (g) {
     g.fields.forEach(function (f) {
-      if (!f.sumOf) office[f.key] = count_(given[f.key], f.label + ' (' + g.title + ')');
+      // A "from" field isn't saved here: the ushers' count is on the Attendance tab.
+      if (!f.sumOf && !f.from) office[f.key] = count_(given[f.key], f.label + ' (' + g.title + ')');
     });
   });
   // Then the added-up ones: each sumOf field, then each card's total.
